@@ -1,0 +1,399 @@
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 10:42:01 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: E:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main.l
+                    -st) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*******************************************************************************  
+   2          * 文件名称：通过DS18B20采集环境温度实验
+   3          * 实验配置：J13跳线配置为IO方式，J5配置为BTN、J2配置为1-3和2-4
+   4          * 实验现象：数码管显示采集的温度数值
+   5          * 硬件环境：IAP15F2K61S2单片机，单片机内部振荡器频率：12M
+   6          * 注意事项：要用到_nop_()必须要包含intrins.h头文件
+   7          *******************************************************************************/
+   8          #include "stc15.h"
+   9          #include "onewire.h"
+  10          #include "ds1302.h"
+  11          unsigned char code SMG_duanma[18]=
+  12          {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,
+  13               0x80,0x90,0x88,0x80,0xc6,0xc0,0x86,0x8e,0xbf,0x7f
+  14          };
+  15          unsigned char code inittime[7] = {50,59,23,5,1,3,22};//秒-分-时-日-月-星期-年份
+  16          unsigned char gettime[7];
+  17          unsigned char jiange=1;
+  18          unsigned char jinage_shuzu[] = {1,5,30,60};
+  19          unsigned char wendu_shuzu[10];
+  20          unsigned char display_flag;
+  21          unsigned char caiji_complete;
+  22          unsigned char wenduxian_ii;
+  23          unsigned char tishifu_count,tishifu_flag;
+  24          unsigned char led_count,led_flag;
+  25          unsigned int temperature;
+  26          //unsigned int count;
+  27          sbit HC138_A = P2^5;
+  28          sbit HC138_B = P2^6;
+  29          sbit HC138_C = P2^7;
+  30          sbit L1 = P0^0;
+  31          sbit S7 = P3^0;
+  32          sbit S6 = P3^1;
+  33          sbit S5 = P3^2;
+  34          sbit S4 = P3^3;
+  35          unsigned int count;
+  36          void ds1302_init();
+  37          void readtime();
+  38          void HC138_Select(unsigned char i);
+  39          void Display_SEG_Bit(unsigned char pos,unsigned char value);
+  40          void DelaySMG(unsigned int times);  
+  41          void Delay_K(unsigned char times);
+  42          void Key_Scan();
+  43          void TimerInit();
+  44          void Display_JianGe();
+  45          void Display_Time();
+  46          void Display_Temperature();
+  47          void Display();
+  48          void LED_Control();
+  49          void main()
+  50          {
+  51   1          HC138_Select(4);
+  52   1          P0=0X00;
+  53   1          HC138_Select(1);
+  54   1          P0=0XFF;
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 10:42:01 PAGE 2   
+
+  55   1          TimerInit();
+  56   1          ds1302_init();
+  57   1          while(1)
+  58   1          {
+  59   2            temperature = (unsigned int)(read_temperature()); 
+  60   2            readtime();
+  61   2            Key_Scan();
+  62   2            Display();
+  63   2            LED_Control();
+  64   2          }
+  65   1      }
+  66          void TimerInit()
+  67          {
+  68   1        TMOD = 0X00;
+  69   1        TH0 = (65536-50000)/256;
+  70   1        TL0 = (65536-50000)%256;
+  71   1        TH1 = (65536-50000)/256;
+  72   1        TL1 = (65536-50000)%256;
+  73   1        EA  = 1;
+  74   1        ET0 = 1;
+  75   1        ET1 = 1;
+  76   1        //TR0 = 1;
+  77   1        TR1 = 1;
+  78   1      }
+  79          void Timer0Service() interrupt 1
+  80          {
+  81   1        static int mm;
+  82   1        count++;
+  83   1        if(count>=(jiange*20))
+  84   1        {
+  85   2          count = 0;
+  86   2          wendu_shuzu[mm] = temperature;
+  87   2          mm++;
+  88   2          if(mm==10)
+  89   2          {
+  90   3            TR0 = 0;
+  91   3            mm = 0;
+  92   3            caiji_complete = 1;
+  93   3            //display_flag = 2;//温度显示界面
+  94   3          }
+  95   2        }
+  96   1      }
+  97          void Timer1Service() interrupt 3
+  98          {
+  99   1        tishifu_count++;
+ 100   1        led_count++;
+ 101   1        if(led_count>=4)
+ 102   1        {
+ 103   2          led_count = 0;
+ 104   2          led_flag = !led_flag;
+ 105   2        }
+ 106   1        if(tishifu_count>=20)
+ 107   1        {
+ 108   2          tishifu_count = 0;
+ 109   2          tishifu_flag = !tishifu_flag;
+ 110   2          if(display_flag==2)
+ 111   2          {
+ 112   3          if(wenduxian_ii<=8)
+ 113   3          { 
+ 114   4            wenduxian_ii++;
+ 115   4          }
+ 116   3          }
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 10:42:01 PAGE 3   
+
+ 117   2        }
+ 118   1      }
+ 119          void LED_Control()
+ 120          {
+ 121   1        if((caiji_complete==1)&&(display_flag==1))
+ 122   1        {
+ 123   2          if(led_flag==0)
+ 124   2          {
+ 125   3            P0 = 0XFF;
+ 126   3            HC138_Select(1);
+ 127   3            P0 = 0XFF;
+ 128   3            L1 = 0;
+ 129   3          }
+ 130   2          else
+ 131   2          {
+ 132   3            P0 = 0XFF;
+ 133   3            HC138_Select(1);
+ 134   3            P0 = 0XFF;
+ 135   3            L1 = 1;
+ 136   3          }
+ 137   2        }
+ 138   1        else
+ 139   1        {
+ 140   2          P0 = 0XFF;
+ 141   2          HC138_Select(1);
+ 142   2          P0 = 0XFF;
+ 143   2          L1 = 1;
+ 144   2        }
+ 145   1      }
+ 146          void Delay_K(unsigned char times)
+ 147          {
+ 148   1        while(times--)
+ 149   1        {
+ 150   2          //display_AIN3_FRE();
+ 151   2          Display();
+ 152   2        }
+ 153   1      }
+ 154          void Key_Scan()
+ 155          {
+ 156   1        static int ii;
+ 157   1        if(S4==0)
+ 158   1        {
+ 159   2          Delay_K(20);
+ 160   2          if(S4==0)
+ 161   2          {
+ 162   3            while(S4==0)
+ 163   3            {
+ 164   4              Display();
+ 165   4            }
+ 166   3            if(display_flag==0)
+ 167   3            {
+ 168   4              jiange = jinage_shuzu[ii];
+ 169   4              ii++;
+ 170   4              if(ii==4)
+ 171   4              {
+ 172   5                ii = 0;
+ 173   5              }
+ 174   4            }
+ 175   3          }
+ 176   2        }
+ 177   1        
+ 178   1        if(S5==0)
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 10:42:01 PAGE 4   
+
+ 179   1        {
+ 180   2          Delay_K(20);
+ 181   2          if(S5==0)
+ 182   2          {
+ 183   3            while(S5==0)
+ 184   3            {
+ 185   4              Display();
+ 186   4            }
+ 187   3            if(display_flag==0)
+ 188   3            {
+ 189   4              TR0 = 1;
+ 190   4              display_flag = 1;//时钟显示界面
+ 191   4              caiji_complete = 0;
+ 192   4              wenduxian_ii = 0;
+ 193   4            }
+ 194   3          }
+ 195   2        }
+ 196   1        
+ 197   1          if(S7==0)
+ 198   1        {
+ 199   2          Delay_K(20);
+ 200   2          if(S7==0)
+ 201   2          {
+ 202   3            while(S7==0)
+ 203   3            {
+ 204   4              Display();
+ 205   4            }
+ 206   3            if(display_flag==2)
+ 207   3            {
+ 208   4              display_flag = 0;
+ 209   4              wenduxian_ii = 0;
+ 210   4            }
+ 211   3          }
+ 212   2        }
+ 213   1        
+ 214   1          if(S6==0)
+ 215   1        {
+ 216   2          Delay_K(20);
+ 217   2          if(S6==0)
+ 218   2          {
+ 219   3            while(S6==0)
+ 220   3            {
+ 221   4              Display();
+ 222   4            }
+ 223   3            if(caiji_complete==1)
+ 224   3            {
+ 225   4              display_flag = 2;
+ 226   4              tishifu_count = 0;
+ 227   4            }
+ 228   3          }
+ 229   2        }
+ 230   1      }
+ 231          void Display_SEG_Bit(unsigned char pos,unsigned char value)
+ 232          {
+ 233   1        HC138_Select(3);//位选
+ 234   1        P0 = 0x00;
+ 235   1        P0 = 0x01<<(pos-1);
+ 236   1        HC138_Select(2);//段选
+ 237   1        P0 = 0xff;
+ 238   1        P0 = SMG_duanma[value];
+ 239   1        DelaySMG(1);
+ 240   1        P0 = 0xff;
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 10:42:01 PAGE 5   
+
+ 241   1      }
+ 242          void HC138_Select(unsigned char i)
+ 243          {
+ 244   1        switch(i)
+ 245   1        {
+ 246   2          case 1://LED
+ 247   2              HC138_A = 0;
+ 248   2              HC138_B = 0;
+ 249   2              HC138_C = 1;
+ 250   2              break;
+ 251   2          case 2://SEG
+ 252   2              HC138_A = 1;
+ 253   2              HC138_B = 1;
+ 254   2              HC138_C = 1;
+ 255   2              break;
+ 256   2          case 3://Bit
+ 257   2              HC138_A = 0;
+ 258   2              HC138_B = 1;
+ 259   2              HC138_C = 1;
+ 260   2              break;
+ 261   2          case 4://达林顿管阵列 取反门
+ 262   2              HC138_A = 1;
+ 263   2              HC138_B = 0;
+ 264   2              HC138_C = 1;
+ 265   2              break;
+ 266   2          default:break;
+ 267   2        }
+ 268   1      }
+ 269          void DelaySMG(unsigned int times)   //@12.000MHz
+ 270          {
+ 271   1        unsigned char i,j;
+ 272   1        unsigned int n;
+ 273   1        for(n = 0;n < times;n++)
+ 274   1        {
+ 275   2          i = 12;
+ 276   2          j = 50;
+ 277   2          do
+ 278   2          {
+ 279   3            while (--j);
+ 280   3          }
+ 281   2          while (--i);
+ 282   2        }
+ 283   1      
+ 284   1      }
+ 285          void ds1302_init()
+ 286          {
+ 287   1        unsigned char i,add = 0x80;
+ 288   1        write(0x8e,0x00);
+ 289   1        for(i=0;i<7;i++)
+ 290   1        {
+ 291   2          write(add,inittime[i]);
+ 292   2          add = add+2;
+ 293   2        }
+ 294   1        write(0x8e,0x80);
+ 295   1      }
+ 296          void readtime()
+ 297          {
+ 298   1        unsigned char i,add = 0x81;
+ 299   1        write(0x8e,0x00);
+ 300   1        for(i=0;i<7;i++)
+ 301   1        {
+ 302   2          gettime[i] = read(add);
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 10:42:01 PAGE 6   
+
+ 303   2          add = add+2;
+ 304   2        }
+ 305   1        write(0x8e,0x80);
+ 306   1      }
+ 307          void Display_JianGe()
+ 308          {
+ 309   1        Display_SEG_Bit(6,16);
+ 310   1        Display_SEG_Bit(7,jiange/10%10);
+ 311   1        Display_SEG_Bit(8,jiange%10);
+ 312   1      }
+ 313          void Display_Time()
+ 314          {
+ 315   1        Display_SEG_Bit(1,gettime[2]/10%10);
+ 316   1        Display_SEG_Bit(2,gettime[2]%10);
+ 317   1        //Display_SEG_Bit(3,16);
+ 318   1        Display_SEG_Bit(4,gettime[1]/10%10);
+ 319   1        
+ 320   1        Display_SEG_Bit(5,gettime[1]%10);
+ 321   1        //Display_SEG_Bit(6,16);
+ 322   1        Display_SEG_Bit(7,gettime[0]/10%10);
+ 323   1        Display_SEG_Bit(8,gettime[0]%10);
+ 324   1        if(tishifu_flag==0)
+ 325   1        {
+ 326   2          Display_SEG_Bit(3,16);
+ 327   2          Display_SEG_Bit(6,16);
+ 328   2        }
+ 329   1        else
+ 330   1        {
+ 331   2          HC138_Select(3);//位选
+ 332   2          P0 = 0x00;
+ 333   2        }
+ 334   1      }
+ 335          void Display_Temperature()
+ 336          {
+ 337   1        
+ 338   1        Display_SEG_Bit(1,16);
+ 339   1        Display_SEG_Bit(2,wenduxian_ii/10);
+ 340   1        Display_SEG_Bit(3,wenduxian_ii%10);
+ 341   1        Display_SEG_Bit(6,16);
+ 342   1        Display_SEG_Bit(7,wendu_shuzu[wenduxian_ii]/10%10);
+ 343   1        Display_SEG_Bit(8,wendu_shuzu[wenduxian_ii]%10);
+ 344   1      }
+ 345          void Display()
+ 346          {
+ 347   1        if(display_flag==0)
+ 348   1        {
+ 349   2           Display_JianGe();
+ 350   2        }
+ 351   1        else if(display_flag==1)
+ 352   1        {
+ 353   2           Display_Time();
+ 354   2        }
+ 355   1        else if(display_flag==2)
+ 356   1        {
+ 357   2           Display_Temperature();
+ 358   2        }
+ 359   1        else
+ 360   1        {
+ 361   2          
+ 362   2        }
+ 363   1      }
+
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 10:42:01 PAGE 7   
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    873    ----
+   CONSTANT SIZE    =     25    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     37       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

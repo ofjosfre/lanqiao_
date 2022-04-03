@@ -1,0 +1,1149 @@
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE LED
+OBJECT MODULE PLACED IN .\Objects\LED.obj
+COMPILER INVOKED BY: E:\Keil5\C51\BIN\C51.EXE LED.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\LED.lst
+                    -) TABS(2) OBJECT(.\Objects\LED.obj)
+
+line level    source
+
+   1          ///*******************************************************************************  
+   2          //* 文件名称：LED跑马灯实验
+   3          //* 实验配置：J13跳线配置为IO方式，J5配置为BTN、J2配置为1-3和2-4
+   4          //* 实验现象：实现LED的跑马灯效果
+   5          //* 硬件环境：IAP15F2K61S2单片机，单片机内部振荡器频率：12M
+   6          //* 注意事项：要用到_nop_()必须要包含intrins.h头文件
+   7          //*******************************************************************************/
+   8          //#include <stc15.h>
+   9          //#include "iic.h"
+  10          //sbit HC138_A = P2^5;
+  11          //sbit HC138_B = P2^6;
+  12          //sbit HC138_C = P2^7;
+  13          //sbit LED1 = P0^0;
+  14          //sbit LED2 = P0^1;
+  15          //sbit LED3 = P0^2;
+  16          //sbit LED4 = P0^3;
+  17          //sbit LED5 = P0^4;
+  18          //sbit LED6 = P0^5;
+  19          //sbit LED7 = P0^6;
+  20          //sbit LED8 = P0^7;
+  21          //sbit S7 = P3^0;
+  22          //sbit S6 = P3^1;
+  23          //sbit S5 = P3^2;
+  24          //sbit S4 = P3^3;
+  25          //unsigned char code SMG_duanma[18]=
+  26          //{0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,
+  27          //     0x80,0x90,0x88,0x80,0xc6,0xc0,0x86,0x8e,0xbf,0x7f
+  28          //};
+  29          ////unsigned int count=0;
+  30          //unsigned int mode1_count=0;
+  31          //unsigned int mode2_count=0;
+  32          //unsigned int mode3_count=0;
+  33          //unsigned int mode4_count=0;
+  34          //unsigned char i = 0;
+  35          //unsigned char j = 8;
+  36          //unsigned char m = 0;
+  37          //unsigned char n = 0;
+  38          //unsigned char mode = 0;
+  39          //unsigned char shezhi = 0;
+  40          //unsigned char liangdu_count = 0;
+  41          //unsigned char MAX = 0;
+  42          //unsigned char liuzhuan = 0;
+  43          //unsigned char AIN3_Value;
+  44          //unsigned char mode1_jiange = 4;
+  45          //unsigned char mode2_jiange = 4;
+  46          //unsigned char mode3_jiange = 4;
+  47          //unsigned char mode4_jiange = 4;
+  48          //unsigned char mode_xianshi = 1;
+  49          //unsigned char liangdeng ;
+  50          //void initTimer0(void);
+  51          //void PWM_MAX();
+  52          //void LED_Mode2();
+  53          //void LED_Mode1();
+  54          //void LED_Mode3();
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 2   
+
+  55          //void LED_Mode4();
+  56          //void Delay10ms();
+  57          //unsigned char Read_AIN3();
+  58          ////void LED_Mode_Select();
+  59          //void LED_LD_Secect();
+  60          //void Delay_K(unsigned char time);
+  61          //void HC138_Select(unsigned char i);
+  62          //void LED_LD_Secect();
+  63          //void Delaynms(unsigned int times) ;
+  64          //void KEY_Scan();
+  65          //void display_data();
+  66          //void Display_SEG_Bit(unsigned char pos,unsigned char value);
+  67          //void DelaySMG(unsigned int times);
+  68          //void liuzhuandis();
+  69          //void main()
+  70          //{
+  71          //  HC138_Select(4);
+  72          //  P0=0X00;
+  73          //  HC138_Select(1);
+  74          //  P0=0XFF;
+  75          //  initTimer0();
+  76          //  while(1)
+  77          //  {
+  78          //    PWM_MAX();
+  79          //    KEY_Scan();
+  80          //    if(liangdeng ==1)
+  81          //    {
+  82          //    switch(mode)
+  83          //  {
+  84          //      case 0:
+  85          //      HC138_Select(1);
+  86          //      P0 = 0XFF&(~(1<<i));
+  87          //      break;
+  88          //      case 1:
+  89          //      HC138_Select(1);
+  90          //      P0 = 0XFF&(~(1<<(j-1)));
+  91          //      break;
+  92          //      case 2:
+  93          //      switch(m)
+  94          //      {
+  95          //          case 0:
+  96          //          HC138_Select(1);
+  97          //          P0 = 0xFF;
+  98          //          LED1=0;LED8=0;
+  99          //          break;
+ 100          //          
+ 101          //          case 1:
+ 102          //          HC138_Select(1);
+ 103          //          P0 = 0xFF;
+ 104          //          LED2=0;LED7=0;
+ 105          //          break;
+ 106          //          
+ 107          //          case 2:
+ 108          //          HC138_Select(1);
+ 109          //          P0 = 0xFF;
+ 110          //          LED3=0;LED6=0;
+ 111          //          break;
+ 112          //          
+ 113          //          case 3:
+ 114          //          HC138_Select(1);
+ 115          //          P0 = 0xFF;
+ 116          //          LED4=0;LED5=0;
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 3   
+
+ 117          //          break;
+ 118          //          default:break;
+ 119          //    }
+ 120          //      break;
+ 121          //      case 3:
+ 122          //      switch(n)
+ 123          //      {
+ 124          //        case 0:
+ 125          //        HC138_Select(1);
+ 126          //        P0 = 0xFF;
+ 127          //        LED4=0;LED5=0;
+ 128          //        break;
+ 129          //        
+ 130          //        case 1:
+ 131          //        HC138_Select(1);
+ 132          //        P0 = 0xFF;
+ 133          //        LED3=0;LED6=0;
+ 134          //        break;
+ 135          //        
+ 136          //        case 2:
+ 137          //        HC138_Select(1);
+ 138          //        P0 = 0xFF;
+ 139          //        LED2=0;LED7=0;
+ 140          //        break;
+ 141          //        
+ 142          //        case 3:
+ 143          //        HC138_Select(1);
+ 144          //        P0 = 0xFF;
+ 145          //        LED1=0;LED8=0;
+ 146          //        break;
+ 147          //        default:break;
+ 148          //      }
+ 149          //      break;
+ 150          //      default:break;
+ 151          //  }
+ 152          //    }
+ 153          //    else
+ 154          //    {
+ 155          //        HC138_Select(1);
+ 156          //        P0 = 0xFF;
+ 157          //    }
+ 158          //    //display_data();
+ 159          //  }
+ 160          
+ 161          //}
+ 162          //void HC138_Select(unsigned char i)
+ 163          //{
+ 164          //  switch(i)
+ 165          //  {
+ 166          //    case 1://LED
+ 167          //        HC138_A = 0;
+ 168          //        HC138_B = 0;
+ 169          //        HC138_C = 1;
+ 170          //        break;
+ 171          //    case 2://SEG
+ 172          //        HC138_A = 1;
+ 173          //        HC138_B = 1;
+ 174          //        HC138_C = 1;
+ 175          //        break;
+ 176          //    case 3://Bit
+ 177          //        HC138_A = 0;
+ 178          //        HC138_B = 1;
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 4   
+
+ 179          //        HC138_C = 1;
+ 180          //        break;
+ 181          //    case 4://达林顿管阵列 取反门
+ 182          //        HC138_A = 1;
+ 183          //        HC138_B = 0;
+ 184          //        HC138_C = 1;
+ 185          //        break;
+ 186          //    default:break;
+ 187          //  }
+ 188          //}
+ 189          //void initTimer0(void)
+ 190          //{
+ 191          //  TMOD=0X00;//用作定时器，定时器工作于模式0：即16位自动重装载定时器
+ 192          //  //TMOD=0X01;
+ 193          //  TH0=(65536-200)/256;//定时器0高8位寄存器
+ 194          //  TL0=(65536-200)%256;
+ 195          //  EA=1;
+ 196          //  ET0=1;//定时器0中断开关
+ 197          //  TR0=1;//定时器0开始计数
+ 198          //}
+ 199          //void Timer0() interrupt 1
+ 200          //{
+ 201          
+ 202          //   liuzhuandis();
+ 203          //  //亮度控制
+ 204          //}
+ 205          //void liuzhuandis()
+ 206          //{
+ 207          //  
+ 208          //    if(liuzhuan==1)
+ 209          //  {
+ 210          //    
+ 211          //      liangdu_count++;
+ 212          //      LED_LD_Secect();
+ 213          //      if(liangdu_count==100)
+ 214          //      {
+ 215          //        liangdu_count=0;
+ 216          //        mode1_count++;
+ 217          //        mode2_count++;
+ 218          //        mode3_count++;
+ 219          //        mode4_count++;
+ 220          //        if((mode1_count==20)&&(mode==0))
+ 221          //        {
+ 222          //          mode1_count = 0;
+ 223          //          mode2_count = 0;
+ 224          //          mode3_count = 0;
+ 225          //          mode4_count = 0;
+ 226          //          LED_Mode1();
+ 227          //        }
+ 228          //        
+ 229          //        if((mode2_count==40)&&(mode==1))
+ 230          //        {
+ 231          //          mode1_count = 0;
+ 232          //          mode2_count = 0;
+ 233          //          mode3_count = 0;
+ 234          //          mode4_count = 0;
+ 235          //          LED_Mode2();
+ 236          //        }
+ 237          //        
+ 238          //        if((mode3_count==80)&&(mode==2))
+ 239          //        {
+ 240          //          mode1_count = 0;
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 5   
+
+ 241          //          mode2_count = 0;
+ 242          //          mode3_count = 0;
+ 243          //          mode4_count = 0;
+ 244          //          LED_Mode3();
+ 245          //        }
+ 246          //        
+ 247          //        if((mode4_count==200)&&(mode==3))
+ 248          //        {
+ 249          //          mode1_count = 0;
+ 250          //          mode2_count = 0;
+ 251          //          mode3_count = 0;
+ 252          //          mode4_count = 0;
+ 253          //          LED_Mode4();
+ 254          //          
+ 255          //        }
+ 256          //      }
+ 257          //  }
+ 258          //  else
+ 259          //  {
+ 260          //    liangdu_count = 0;
+ 261          //    mode = 8;
+ 262          //    mode1_count = 0;
+ 263          //    mode2_count = 0;
+ 264          //    mode3_count = 0;
+ 265          //    mode4_count = 0;
+ 266          //    i = 0;
+ 267          //    m= 0;
+ 268          //    n = 0;
+ 269          //    j = 8;
+ 270          //    HC138_Select(1);
+ 271          //    P0 = 0XFF;
+ 272          //  }
+ 273          //}
+ 274          //void LED_Mode1()//单个LED右移
+ 275          //{
+ 276          //    i++;
+ 277          //    if(i==8)
+ 278          //    {
+ 279          //      i = 0;
+ 280          //      mode = 1;
+ 281          //    }
+ 282          //}
+ 283          //void LED_Mode2()
+ 284          //{
+ 285          //    j--;
+ 286          //    if(j==0)
+ 287          //    {
+ 288          //      j = 8;
+ 289          //      mode = 2;
+ 290          //    }
+ 291          //}
+ 292          //void LED_Mode3()
+ 293          //{
+ 294          //  m++;
+ 295          //  if(m==4)
+ 296          //  {
+ 297          //    m = 0;
+ 298          //    mode = 3;
+ 299          //  }
+ 300          //}
+ 301          
+ 302          //void LED_Mode4()
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 6   
+
+ 303          //{
+ 304          //  n++;
+ 305          //  if(n==4)
+ 306          //  {
+ 307          //    n = 0;
+ 308          //    mode = 0;
+ 309          //  }
+ 310          //}
+ 311          ////void LED_Mode_Select()
+ 312          ////{
+ 313          ////  switch(mode)
+ 314          ////  {
+ 315          ////      case 0:LED_Mode1();break;
+ 316          ////      case 1:LED_Mode2();break;
+ 317          ////      case 2:LED_Mode3();break;
+ 318          ////      case 3:LED_Mode4();break;
+ 319          ////      default:break;
+ 320          ////  }
+ 321          ////}
+ 322          //void LED_LD_Secect()
+ 323          //{
+ 324          //  if(liangdu_count<MAX)//控制亮度
+ 325          //  {
+ 326          //    liangdeng = 1;
+ 327          ////    switch(mode)
+ 328          ////  {
+ 329          ////      case 0:
+ 330          ////      HC138_Select(1);
+ 331          ////      P0 = 0XFF&(~(1<<i));
+ 332          ////      break;
+ 333          ////      case 1:
+ 334          ////      HC138_Select(1);
+ 335          ////      P0 = 0XFF&(~(1<<(j-1)));
+ 336          ////      break;
+ 337          ////      case 2:
+ 338          ////      switch(m)
+ 339          ////      {
+ 340          ////          case 0:
+ 341          ////          HC138_Select(1);
+ 342          ////          P0 = 0xFF;
+ 343          ////          LED1=0;LED8=0;
+ 344          ////          break;
+ 345          ////          
+ 346          ////          case 1:
+ 347          ////          HC138_Select(1);
+ 348          ////          P0 = 0xFF;
+ 349          ////          LED2=0;LED7=0;
+ 350          ////          break;
+ 351          ////          
+ 352          ////          case 2:
+ 353          ////          HC138_Select(1);
+ 354          ////          P0 = 0xFF;
+ 355          ////          LED3=0;LED6=0;
+ 356          ////          break;
+ 357          ////          
+ 358          ////          case 3:
+ 359          ////          HC138_Select(1);
+ 360          ////          P0 = 0xFF;
+ 361          ////          LED4=0;LED5=0;
+ 362          ////          break;
+ 363          ////          default:break;
+ 364          ////    }
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 7   
+
+ 365          ////      break;
+ 366          ////      case 3:
+ 367          ////      switch(n)
+ 368          ////      {
+ 369          ////        case 0:
+ 370          ////        HC138_Select(1);
+ 371          ////        P0 = 0xFF;
+ 372          ////        LED4=0;LED5=0;
+ 373          ////        break;
+ 374          ////        
+ 375          ////        case 1:
+ 376          ////        HC138_Select(1);
+ 377          ////        P0 = 0xFF;
+ 378          ////        LED3=0;LED6=0;
+ 379          ////        break;
+ 380          ////        
+ 381          ////        case 2:
+ 382          ////        HC138_Select(1);
+ 383          ////        P0 = 0xFF;
+ 384          ////        LED2=0;LED7=0;
+ 385          ////        break;
+ 386          ////        
+ 387          ////        case 3:
+ 388          ////        HC138_Select(1);
+ 389          ////        P0 = 0xFF;
+ 390          ////        LED1=0;LED8=0;
+ 391          ////        break;
+ 392          ////        default:break;
+ 393          ////      }
+ 394          ////      break;
+ 395          ////      default:break;
+ 396          ////  }
+ 397          //  }
+ 398          //  
+ 399          //  else
+ 400          //  {
+ 401          //    liangdeng = 0;
+ 402          ////    HC138_Select(1);
+ 403          ////    P0 = 0xFF;
+ 404          
+ 405          //  }
+ 406          //}
+ 407          
+ 408          //void Delay10ms()    //@12.000MHz
+ 409          //{
+ 410          //  unsigned char i, j;
+ 411          
+ 412          //  i = 117;
+ 413          //  j = 184;
+ 414          //  do
+ 415          //  {
+ 416          //    while (--j);
+ 417          //  } while (--i);
+ 418          //}
+ 419          //void Delay_K(unsigned char time)
+ 420          //{
+ 421          //  while(time--)
+ 422          //  {
+ 423          //    display_data();
+ 424          //  }
+ 425          //}
+ 426          //void KEY_Scan()
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 8   
+
+ 427          //{
+ 428          //  if(S7==0)
+ 429          //  {
+ 430          //    Delay_K(30);
+ 431          ////    Delay10ms();Delay10ms();Delay10ms();
+ 432          ////    Delay10ms();            Delay10ms();
+ 433          //    if(S7==0)
+ 434          //    {
+ 435          //      while(S7==0){
+ 436          //        display_data();
+ 437          //      }
+ 438          //      liuzhuan = !liuzhuan;
+ 439          //      mode = 0;
+ 440          //    }
+ 441          //  }
+ 442          //  
+ 443          //    if(S6==0)
+ 444          //  {
+ 445          ////    Delay10ms();Delay10ms();Delay10ms();
+ 446          ////    Delay10ms();            Delay10ms();
+ 447          //    Delay_K(30);
+ 448          //    if(S6==0)
+ 449          //    {
+ 450          //      while(S6==0)
+ 451          //      {
+ 452          //        display_data();
+ 453          //      }
+ 454          //      shezhi++;
+ 455          //      if(shezhi>=3)
+ 456          //      {
+ 457          //        shezhi = 0;
+ 458          //      }
+ 459          //    }
+ 460          //  }
+ 461          //  
+ 462          //      if(S5==0)
+ 463          //  {
+ 464          ////    Delay10ms();Delay10ms();Delay10ms();
+ 465          ////    Delay10ms();            Delay10ms();
+ 466          //    Delay_K(30);
+ 467          //    if(S5==0)
+ 468          //    {
+ 469          //      while(S5==0)
+ 470          //      {
+ 471          //        display_data();
+ 472          //      }
+ 473          //      if(shezhi==1)
+ 474          //      {
+ 475          //        //模式加1
+ 476          //        //控制边界
+ 477          //        if(mode_xianshi<=3)
+ 478          //        {
+ 479          //          mode_xianshi++;
+ 480          //        }
+ 481          //      }
+ 482          //      else if(shezhi==2)
+ 483          //      {
+ 484          //        //流转间隔加100ms
+ 485          //        switch(mode_xianshi)
+ 486          //        {
+ 487          //          case 1:
+ 488          //          if(mode1_jiange<=11)
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 9   
+
+ 489          //            mode1_jiange++;
+ 490          //          break;
+ 491          //          
+ 492          //          case 2:
+ 493          //          if(mode2_jiange<=11)
+ 494          //            mode2_jiange++;
+ 495          //          break;
+ 496          //          
+ 497          //          case 3:
+ 498          //          if(mode3_jiange<=11)
+ 499          //            mode3_jiange++;
+ 500          //          break;
+ 501          //          
+ 502          //          case 4:
+ 503          //          if(mode4_jiange<=11)
+ 504          //            mode4_jiange++;
+ 505          //          break;
+ 506          //          default:break;
+ 507          //        }
+ 508          //      }
+ 509          //      else
+ 510          //      {
+ 511          //        
+ 512          //      }
+ 513          //    }
+ 514          //  }
+ 515          //  
+ 516          //      if(S4==0)
+ 517          //  {
+ 518          ////    Delay10ms();Delay10ms();Delay10ms();
+ 519          ////    Delay10ms();            Delay10ms();
+ 520          //    Delay_K(30);
+ 521          //    if(S4==0)
+ 522          //    {
+ 523          //      while(S4==0)
+ 524          //      {
+ 525          //        display_data();
+ 526          //      }
+ 527          //      if(shezhi==1)
+ 528          //      {
+ 529          //        //模式减1
+ 530          //        //控制边界
+ 531          //        if(mode_xianshi>=2)
+ 532          //        { 
+ 533          //          mode_xianshi--;
+ 534          //        }
+ 535          //        
+ 536          //      }
+ 537          //      else if(shezhi==2)
+ 538          //      {
+ 539          //        //流转间隔减100ms
+ 540          //              switch(mode_xianshi)
+ 541          //        {
+ 542          //          case 1:
+ 543          //          if(mode1_jiange>=2)
+ 544          //            mode1_jiange--;
+ 545          //          break;
+ 546          //          
+ 547          //          case 2:
+ 548          //          if(mode2_jiange>=2)
+ 549          //            mode2_jiange--;
+ 550          //          break;
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 10  
+
+ 551          //          
+ 552          //          case 3:
+ 553          //          if(mode3_jiange>=2)
+ 554          //            mode3_jiange--;
+ 555          //          break;
+ 556          //          
+ 557          //          case 4:
+ 558          //          if(mode4_jiange>=2)
+ 559          //            mode4_jiange--;
+ 560          //          break;
+ 561          //          default:break;
+ 562          //        }
+ 563          //      }
+ 564          //      else
+ 565          //      {
+ 566          //        
+ 567          //      }
+ 568          //    }
+ 569          //  }
+ 570          //  
+ 571          //}
+ 572          //void PWM_MAX()
+ 573          //{
+ 574          //    AIN3_Value = Read_AIN3();
+ 575          //    if(AIN3_Value<64)
+ 576          //    {
+ 577          //      MAX =25;
+ 578          //    }
+ 579          //    else if(AIN3_Value<128)
+ 580          //    {
+ 581          //      MAX =50;
+ 582          //    }
+ 583          //    else if(AIN3_Value<192)
+ 584          //    {
+ 585          //      MAX =50;
+ 586          //    }
+ 587          //    else
+ 588          //    {
+ 589          //      MAX = 100;
+ 590          //    }
+ 591          //}
+ 592          //unsigned char Read_AIN3()
+ 593          //{
+ 594          //  unsigned char temp = 0;
+ 595          //  IIC_Start();//IIC总线起始信号
+ 596          //  IIC_SendByte(0x90);//发送PCF8591的写操作地址
+ 597          //  IIC_WaitAck();//等待从机应答
+ 598          //  IIC_SendByte(0x03);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道3)。
+ 599          //  //IIC_SendByte(0x01);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道1)。
+ 600          //  IIC_WaitAck();//等待从机应答
+ 601          //  IIC_Stop();//IIC总线起始信号
+ 602          //  
+ 603          //  IIC_Start();
+ 604          //  IIC_SendByte(0x91);//发送PCF8591的读操作地址
+ 605          //  IIC_WaitAck();
+ 606          //  temp = IIC_RecByte();//读取PCF8591通道的数据 
+ 607          //  IIC_SendAck(1);//产生非应答信号
+ 608          //  IIC_Stop();
+ 609          //  return temp;
+ 610          //}
+ 611          //void display_data()
+ 612          //{
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 11  
+
+ 613          ////  HC138_Select(4);
+ 614          ////  P0=0X00;
+ 615          ////  HC138_Select(1);
+ 616          ////  P0=0XFF;
+ 617          //  if(shezhi!=0)
+ 618          //  {
+ 619          //    Display_SEG_Bit(1,16);
+ 620          //    Display_SEG_Bit(2,mode_xianshi);
+ 621          //    Display_SEG_Bit(3,16);
+ 622          //    switch(mode_xianshi)
+ 623          //    {
+ 624          //      case 1:
+ 625          //      if(mode1_jiange>=10)
+ 626          //      {
+ 627          //        Display_SEG_Bit(5,mode1_jiange/10%10);
+ 628          //        Display_SEG_Bit(6,mode1_jiange%10);
+ 629          //        Display_SEG_Bit(7,0);
+ 630          //        Display_SEG_Bit(8,0);
+ 631          //      }
+ 632          //      else
+ 633          //      {
+ 634          //        Display_SEG_Bit(6,mode1_jiange%10);
+ 635          //        Display_SEG_Bit(7,0);
+ 636          //        Display_SEG_Bit(8,0);
+ 637          //      }
+ 638          //      break;
+ 639          //      case 2:
+ 640          //      if(mode2_jiange>=10)
+ 641          //      {
+ 642          //        Display_SEG_Bit(5,mode2_jiange/10%10);
+ 643          //        Display_SEG_Bit(6,mode2_jiange%10);
+ 644          //        Display_SEG_Bit(7,0);
+ 645          //        Display_SEG_Bit(8,0);
+ 646          //      }
+ 647          //      else
+ 648          //      {
+ 649          //        Display_SEG_Bit(6,mode2_jiange%10);
+ 650          //        Display_SEG_Bit(7,0);
+ 651          //        Display_SEG_Bit(8,0);
+ 652          //      }
+ 653          //      break;
+ 654          //      case 3:
+ 655          //      if(mode3_jiange>=10)
+ 656          //      {
+ 657          //        Display_SEG_Bit(5,mode3_jiange/10%10);
+ 658          //        Display_SEG_Bit(6,mode3_jiange%10);
+ 659          //        Display_SEG_Bit(7,0);
+ 660          //        Display_SEG_Bit(8,0);
+ 661          //      }
+ 662          //      else
+ 663          //      {
+ 664          //        Display_SEG_Bit(6,mode3_jiange%10);
+ 665          //        Display_SEG_Bit(7,0);
+ 666          //        Display_SEG_Bit(8,0);
+ 667          //      }
+ 668          //      break;
+ 669          //      case 4:
+ 670          //      if(mode4_jiange>=10)
+ 671          //      {
+ 672          //        Display_SEG_Bit(5,mode4_jiange/10%10);
+ 673          //        Display_SEG_Bit(6,mode4_jiange%10);
+ 674          //        Display_SEG_Bit(7,0);
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 12  
+
+ 675          //        Display_SEG_Bit(8,0);
+ 676          //      }
+ 677          //      else
+ 678          //      {
+ 679          //        Display_SEG_Bit(6,mode4_jiange%10);
+ 680          //        Display_SEG_Bit(7,0);
+ 681          //        Display_SEG_Bit(8,0);
+ 682          //      }
+ 683          //      break;
+ 684          //    }
+ 685          //  }
+ 686          
+ 687          //}
+ 688          //void DelaySMG(unsigned int times)   //@12.000MHz
+ 689          //{
+ 690          //  unsigned char i,j;
+ 691          //  unsigned int n;
+ 692          //  for(n = 0;n < times;n++)
+ 693          //  {
+ 694          //    i = 12;
+ 695          //    j = 50;
+ 696          //    do
+ 697          //    {
+ 698          //      while (--j);
+ 699          //    }
+ 700          //    while (--i);
+ 701          //  }
+ 702          
+ 703          //}
+ 704          //void Display_SEG_Bit(unsigned char pos,unsigned char value)
+ 705          //{
+ 706          //  HC138_Select(3);//位选
+ 707          //  P0 = 0x00;
+ 708          //  P0 = 0x01<<(pos-1);
+ 709          //  HC138_Select(2);//段选
+ 710          //  P0 = 0xff;
+ 711          //  P0 = SMG_duanma[value];
+ 712          //  DelaySMG(1);
+ 713          //  P0 = 0xff;
+ 714          //}
+ 715          
+ 716          
+ 717          //下载时注意晶振12MHz
+ 718          #include "stc15.h"
+ 719          #include "iic.h"
+ 720          #include <stdio.h>
+ 721          #include "intrins.h"
+ 722          #define uchar unsigned char
+ 723          #define uint unsigned int
+ 724          
+ 725          #define KEYCOM P3                    //按键IO
+ 726          #define KEY_S7 0x01
+ 727          #define KEY_S6 0x02
+ 728          #define KEY_S5 0x04
+ 729          #define KEY_S4 0x08
+ 730          #define PWM_MAX 19            //pwm周期 <20
+ 731          
+ 732          uchar code smg_dis[]= {0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F,0x00,0x40};
+ 733          uchar code LED_Max[]= {7,7,3,3}; //模式轮转时 数组最大下标
+ 734          uchar code LED_MODE1[]= {0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
+ 735          uchar code LED_MODE2[]= {0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
+ 736          uchar code LED_MODE3[]= {0x81,0x42,0x24,0x18};
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 13  
+
+ 737          uchar code LED_MODE4[]= {0x18,0x24,0x42,0x81};
+ 738          uchar code PWM_Val[]= {0,5,10,15,20}; //亮度调节PWM值
+ 739          
+ 740          uchar Smg_Buf[8]= {10,10,10,10,10,10,10,10};
+ 741          uchar Led_Time[4]= {4,4,4,4}; //轮转时间
+ 742          
+ 743          bit LED_Switch=0;//led轮转开关
+ 744          bit KEY_Flag=0;
+ 745          bit ADC_Flag=0;
+ 746          bit SET_Flag=0;
+ 747          bit Blink_Flag=0;//0.8s闪烁
+ 748          
+ 749          uchar Trg, Cont; //键值
+ 750          uchar Rank=1;//光照等级
+ 751          
+ 752          void Delay2ms();//写入延时
+ 753          //void UartInit(void);
+ 754          void Timer0Init(void)    ;
+ 755          void KeyRead ();
+ 756          void KEY_Dispose (void);//按键处理
+ 757          void Set_Show (uchar mode);
+ 758          void Write_AT24 (uchar add,uchar dat);
+ 759          uchar Read_AT24 (uchar add);
+ 760          uchar Read_ADC ();//读取adc
+ 761          uchar KEY_Resize (uchar sum,uchar Max,uchar Min);//按键调整数值
+ 762          
+ 763          void main (void)
+ 764          {
+ 765   1          uchar ADC_Val;
+ 766   1          P0=0x00;P2=0xa0;P2=0x00;
+ 767   1          P0=0xff,P2=0x80,P2=0x00;
+ 768   1          //UartInit();
+ 769   1          Timer0Init();
+ 770   1          Led_Time[0]=Read_AT24(0x01);
+ 771   1          Led_Time[1]=Read_AT24(0x02);
+ 772   1          Led_Time[2]=Read_AT24(0x03);
+ 773   1          Led_Time[3]=Read_AT24(0x04);
+ 774   1      
+ 775   1          if( Led_Time[0]>=4 && Led_Time[1]>=4 && Led_Time[2]>=4 && Led_Time[3]>=4  &&
+ 776   1                      Led_Time[0]<=12 && Led_Time[1]<=12 && Led_Time[2]<=12 && Led_Time[3]<=12
+ 777   1                  );//判断读取到的间隔是否在规定范围
+ 778   1          else //不在范围重新赋值
+ 779   1          {
+ 780   2              Led_Time[0]=4;
+ 781   2              Led_Time[1]=4;
+ 782   2              Led_Time[2]=4;
+ 783   2              Led_Time[3]=4;
+ 784   2          }
+ 785   1          while(1)
+ 786   1          {
+ 787   2              if(KEY_Flag)
+ 788   2              {
+ 789   3                  KEY_Flag=0;
+ 790   3                  KEY_Dispose();//处理按键事件
+ 791   3                  if(!SET_Flag && (Trg & KEY_S4 || Cont & KEY_S4))//普通状态显示亮度
+ 792   3                  {
+ 793   4                      Smg_Buf[6]=11;
+ 794   4                      Smg_Buf[7]=Rank;
+ 795   4                  }
+ 796   3                  else if (!SET_Flag)
+ 797   3                  {
+ 798   4                      Smg_Buf[6]=10;
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 14  
+
+ 799   4                      Smg_Buf[7]=10;
+ 800   4                  }
+ 801   3              }
+ 802   2              if(ADC_Flag)//亮度判断
+ 803   2              {
+ 804   3                  ADC_Flag=0;
+ 805   3                  ADC_Val=Read_ADC();
+ 806   3                  if(ADC_Val<=69)
+ 807   3                      Rank=1;
+ 808   3                  else if (ADC_Val>69&&ADC_Val<=131)
+ 809   3                      Rank=2;
+ 810   3                  else if (ADC_Val>131&&ADC_Val<=193)
+ 811   3                      Rank=3;
+ 812   3                  else if (ADC_Val>193&&ADC_Val<=255)
+ 813   3                      Rank=4;
+ 814   3              }
+ 815   2          }
+ 816   1      }
+ 817          
+ 818          void Timer0Init(void)        //1ms@11.0592MHz
+ 819          {
+ 820   1          AUXR |= 0x80;
+ 821   1          TMOD &= 0xF0;
+ 822   1          TL0 = 0xCD;
+ 823   1          TH0 = 0xD4;
+ 824   1          TF0 = 0;
+ 825   1          TR0 = 1;
+ 826   1          ET0 = 1;
+ 827   1          EA  = 1;
+ 828   1      }
+ 829          
+ 830          void TIME0() interrupt 1
+ 831          {
+ 832   1          static uint LedCount =0;
+ 833   1          static uchar KeyCount =0;
+ 834   1          static uchar SmgCount =0;
+ 835   1          static uchar SmgLen=0;
+ 836   1          static uchar AdcCount=0;
+ 837   1          static uint BlinkCount=0;
+ 838   1          static uchar i =0;
+ 839   1          static uchar PWM;
+ 840   1          static uchar  Run_Mode =1;
+ 841   1      
+ 842   1          if(++KeyCount>10)
+ 843   1          {
+ 844   2              KeyCount=0;
+ 845   2              KEY_Flag=1;
+ 846   2          }
+ 847   1      
+ 848   1          if(++AdcCount>100)
+ 849   1          {
+ 850   2              AdcCount=0;
+ 851   2              ADC_Flag=1;
+ 852   2          }
+ 853   1      
+ 854   1          if(SET_Flag)//设置下闪烁所选位
+ 855   1          {
+ 856   2              if( ++BlinkCount>800)
+ 857   2              {
+ 858   3                  BlinkCount=0;
+ 859   3                  Blink_Flag=~Blink_Flag;//不可手动清0
+ 860   3              }
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 15  
+
+ 861   2          }
+ 862   1          if(++SmgCount>1)
+ 863   1          {
+ 864   2              SmgCount=0;
+ 865   2              P0=~smg_dis[Smg_Buf[SmgLen]];P2=0xe0;P2=0x00;
+ 866   2              P0=1<<SmgLen;P2=0xc0;P2=0x00;
+ 867   2              if(++SmgLen>7)SmgLen=0;
+ 868   2          }
+ 869   1          /*****************/
+ 870   1          PWM++;
+ 871   1          if(PWM <= PWM_Val[Rank])
+ 872   1          {
+ 873   2              switch(Run_Mode)//模式
+ 874   2              {
+ 875   3              case 1 :
+ 876   3                  P0=~LED_MODE1[i];
+ 877   3                  break;
+ 878   3              case 2 :
+ 879   3                  P0=~LED_MODE2[i];
+ 880   3                  break;
+ 881   3              case 3 :
+ 882   3                  P0=~LED_MODE3[i];
+ 883   3                  break;
+ 884   3              case 4 :
+ 885   3                  P0=~LED_MODE4[i];
+ 886   3                  break;
+ 887   3              }
+ 888   2              P2=0x80;P2=0x00;
+ 889   2          }
+ 890   1          else if(PWM < PWM_MAX&&PWM>PWM_Val[Rank])//pwm周期小于20ms 视觉残留
+ 891   1          {
+ 892   2              P0=~0x00;P2=0x80;P2=0x00;
+ 893   2          }
+ 894   1          else
+ 895   1          {
+ 896   2              PWM=0;
+ 897   2          }
+ 898   1          /*****************/
+ 899   1          if(!LED_Switch)//暂停时 不影响亮度
+ 900   1          {
+ 901   2              ++LedCount;
+ 902   2              if(LedCount > Led_Time[Run_Mode-1]*100)
+ 903   2              {
+ 904   3                  LedCount=0;
+ 905   3                  ++i;
+ 906   3                  if( i > LED_Max[Run_Mode-1])
+ 907   3                  {
+ 908   4                      i=0;
+ 909   4                      Run_Mode++;//模式切换
+ 910   4                      if(Run_Mode==5)Run_Mode=1;
+ 911   4                  }
+ 912   3              }
+ 913   2          }
+ 914   1      }
+ 915          
+ 916          void KeyRead (void)
+ 917          {
+ 918   1          uchar ReadData = KEYCOM ^ 0xff;
+ 919   1          Trg = ReadData & (ReadData ^ Cont);
+ 920   1          Cont = ReadData;
+ 921   1      }
+ 922          
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 16  
+
+ 923          void KEY_Dispose (void)
+ 924          {
+ 925   1          static uchar SET_MODE=0,mode1=0;
+ 926   1          KeyRead();
+ 927   1          if( Trg & KEY_S7 )
+ 928   1          {
+ 929   2              LED_Switch=~LED_Switch;
+ 930   2          }
+ 931   1          if( Trg & KEY_S6 )
+ 932   1          {
+ 933   2              if(!SET_Flag)
+ 934   2              {
+ 935   3                  SET_MODE=0;
+ 936   3                  SET_Flag=1;
+ 937   3                  mode1=0;
+ 938   3              }
+ 939   2              else
+ 940   2                  SET_MODE++;
+ 941   2              if(SET_MODE>=2)//退出设置 清空显示缓存 便于亮度显示 向EEPROM写入间隔
+ 942   2              {
+ 943   3                  SET_MODE=0;
+ 944   3                  SET_Flag=0;
+ 945   3                  Smg_Buf[0]=10;
+ 946   3                  Smg_Buf[1]=10;
+ 947   3                  Smg_Buf[2]=10;
+ 948   3                  Smg_Buf[3]=10;
+ 949   3                  Smg_Buf[4]=10;
+ 950   3                  Smg_Buf[5]=10;
+ 951   3                  Smg_Buf[6]=10;
+ 952   3                  Smg_Buf[7]=10;
+ 953   3                  Write_AT24(0x01,Led_Time[0]);//写入间隔
+ 954   3                  Delay2ms();//必须延时
+ 955   3                  Write_AT24(0x02,Led_Time[1]);
+ 956   3                  Delay2ms();
+ 957   3                  Write_AT24(0x03,Led_Time[2]);
+ 958   3                  Delay2ms();
+ 959   3                  Write_AT24(0x04,Led_Time[3]);
+ 960   3                  Delay2ms();
+ 961   3              }
+ 962   2          }
+ 963   1          if(SET_Flag)//设置模式
+ 964   1          {
+ 965   2              if(SET_MODE==0)
+ 966   2              {
+ 967   3                  mode1=KEY_Resize(mode1,3,0);
+ 968   3                  Set_Show(mode1);
+ 969   3                  if(Blink_Flag)//闪烁模式位
+ 970   3                  {
+ 971   4                      Smg_Buf[1]=10;
+ 972   4                  }
+ 973   3              }
+ 974   2              else
+ 975   2              {
+ 976   3                  Led_Time[mode1]=KEY_Resize(Led_Time[mode1],12,4);
+ 977   3                  Set_Show(mode1);
+ 978   3                  if(Blink_Flag)//闪烁轮转间隔
+ 979   3                  {
+ 980   4                      Smg_Buf[4]=10;
+ 981   4                      Smg_Buf[5]=10;
+ 982   4                      Smg_Buf[6]=10;
+ 983   4                      Smg_Buf[7]=10;
+ 984   4                  }
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 17  
+
+ 985   3              }
+ 986   2          }
+ 987   1      }
+ 988          
+ 989          uchar KEY_Resize (uchar sum,uchar Max,uchar Min)
+ 990          {
+ 991   1          char Temp;//无字符型uchar <0时会超过取值范围
+ 992   1          Temp=sum;
+ 993   1          if(Trg & KEY_S5)
+ 994   1          {
+ 995   2              if( ++Temp > Max ) Temp=Max;
+ 996   2          }
+ 997   1          if(Trg & KEY_S4)
+ 998   1          {
+ 999   2              if( --Temp < Min ) Temp=Min;
+1000   2          }
+1001   1          return Temp;
+1002   1      }
+1003          
+1004          //void UartInit(void)        //9600bps@11.0592MHz
+1005          //{
+1006          //    SCON = 0x50;
+1007          //    AUXR |= 0x01;
+1008          //    AUXR |= 0x04;
+1009          //    T2L = 0xE0;
+1010          //    T2H = 0xFE;
+1011          //    AUXR |= 0x10;
+1012          //    TI=1;
+1013          //}
+1014          
+1015          void Set_Show (uchar mode)
+1016          {
+1017   1          Smg_Buf[0]=11;
+1018   1          Smg_Buf[1]=mode+1;
+1019   1          Smg_Buf[2]=11;
+1020   1          Smg_Buf[3]=10;
+1021   1          if(Led_Time[mode]<10)//当轮转时间小于1000时 即<10 不显示千位
+1022   1              Smg_Buf[4]=10;
+1023   1          else
+1024   1              Smg_Buf[4]=Led_Time[mode]/10;//1000位
+1025   1          Smg_Buf[5]=Led_Time[mode]%10;//100位
+1026   1          Smg_Buf[6]=0;
+1027   1          Smg_Buf[7]=0;//个位与十位一直为0
+1028   1      }
+1029          
+1030          uchar Read_ADC ()//读取adc
+1031          {
+1032   1        unsigned char temp = 0;
+1033   1        IIC_Start();//IIC总线起始信号
+1034   1        IIC_SendByte(0x90);//发送PCF8591的写操作地址
+1035   1        IIC_WaitAck();//等待从机应答
+1036   1        IIC_SendByte(0x03);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道3)。
+1037   1        //IIC_SendByte(0x01);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道1)。
+1038   1        IIC_WaitAck();//等待从机应答
+1039   1        IIC_Stop();//IIC总线起始信号
+1040   1        
+1041   1        IIC_Start();
+1042   1        IIC_SendByte(0x91);//发送PCF8591的读操作地址
+1043   1        IIC_WaitAck();
+1044   1        temp = IIC_RecByte();//读取PCF8591通道的数据 
+1045   1        IIC_SendAck(1);//产生非应答信号
+1046   1        IIC_Stop();
+C51 COMPILER V9.54   LED                                                                   02/18/2022 08:52:19 PAGE 18  
+
+1047   1        return temp;
+1048   1      }
+1049          
+1050          void Write_AT24 (uchar add,uchar dat)
+1051          {
+1052   1          IIC_Start();
+1053   1          IIC_SendByte(0xa0);
+1054   1          IIC_WaitAck();
+1055   1          IIC_SendByte(add);
+1056   1          IIC_WaitAck();
+1057   1          IIC_SendByte(dat);
+1058   1          IIC_WaitAck();
+1059   1          IIC_Stop();
+1060   1      }
+1061          
+1062          uchar Read_AT24 (uchar add)
+1063          {
+1064   1          uchar Temp;
+1065   1          IIC_Start();
+1066   1          IIC_SendByte(0xa0);
+1067   1          IIC_WaitAck();
+1068   1          IIC_SendByte(add);
+1069   1          IIC_WaitAck();
+1070   1          IIC_Start();
+1071   1          IIC_SendByte(0xa1);
+1072   1          IIC_WaitAck();
+1073   1          Temp=IIC_RecByte();
+1074   1          IIC_SendAck(1);
+1075   1          IIC_Stop();
+1076   1          return Temp;
+1077   1      }
+1078          
+1079          void Delay2ms()        //@11.0592MHz
+1080          {
+1081   1          unsigned char i, j;
+1082   1      
+1083   1          _nop_();
+1084   1          _nop_();
+1085   1          i = 22;
+1086   1          j = 128;
+1087   1          do
+1088   1          {
+1089   2              while (--j);
+1090   2          } while (--i);
+1091   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    974    ----
+   CONSTANT SIZE    =     45    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     28       6
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      5    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

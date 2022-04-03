@@ -1,0 +1,369 @@
+C51 COMPILER V9.54   MAIN                                                                  03/10/2022 17:17:28 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: E:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main.l
+                    -st) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*******************************************************************************  
+   2          * 文件名称：PWM实现LED亮度调整实验
+   3          * 实验配置：J13跳线配置为IO方式，J5配置为BTN、J2配置为1-3和2-4
+   4          * 实验现象：按下S7按键，LED亮度增加
+   5          *           按下S6按键，LED亮度减小
+   6          * 硬件环境：IAP15F2K61S2单片机，单片机内部振荡器频率：12M
+   7          * 注意事项：要用到_nop_()必须要包含intrins.h头文件
+   8          *******************************************************************************/
+   9          #include <stc15.h>
+  10          #include "onewire.h"
+  11          sbit HC138_A = P2^5;
+  12          sbit HC138_B = P2^6;
+  13          sbit HC138_C = P2^7;
+  14          sbit S7 = P3^0;
+  15          sbit S6 = P3^1;
+  16          sbit S5 = P3^2;
+  17          sbit S4 = P3^3;
+  18          sbit L1 = P0^0;
+  19          sbit L2 = P0^1;
+  20          sbit L3 = P0^2;
+  21          unsigned char code SMG_duanma[19]=
+  22          {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,
+  23               0x80,0x90,0x88,0x80,0xc6,0xc0,0x86,0x8e,0xbf,0x7f,0x8C
+  24          };
+  25          void initTimer(void);
+  26          //void Delay10ms();
+  27          void DelayK(unsigned char t);
+  28          void Key_Scan();
+  29          void Fan_ModeControl();
+  30          void LED_Control();
+  31          void FAN_Control();
+  32          void Display();
+  33          void HC138_Select(unsigned char i);
+  34          void Display_SEG_Bit(unsigned char pos,unsigned char value);
+  35          unsigned char fan_mode = 1;
+  36          unsigned char pwm_count=0;
+  37          unsigned int  time_ms_count=0;
+  38          unsigned int  time_s_count=0;
+  39          unsigned char  time_flag=1;
+  40          unsigned char PWM_MAX = 20;
+  41          unsigned int  TIM_MAX=0;//300
+  42          unsigned char remain_time;
+  43          unsigned char pwm_fan_flag;
+  44          unsigned char display_flag;
+  45          unsigned int temperature;
+  46          void main()
+  47          {
+  48   1        
+  49   1        HC138_Select(4);
+  50   1        P0=0X00;
+  51   1        HC138_Select(1);
+  52   1        P0=0XFF;
+  53   1        initTimer();
+  54   1        while(1)
+C51 COMPILER V9.54   MAIN                                                                  03/10/2022 17:17:28 PAGE 2   
+
+  55   1        {
+  56   2          temperature = (unsigned int)(read_temperature()); 
+  57   2          Key_Scan();
+  58   2          LED_Control();
+  59   2          Fan_ModeControl();
+  60   2          Display();
+  61   2          FAN_Control();
+  62   2        }
+  63   1      }
+  64          void LED_Control()
+  65          {
+  66   1        if(time_flag==0)//是否剩余时间标志位 0：存在剩余时间  1：无剩余时间
+  67   1        {
+  68   2          if(remain_time>0)//具体的剩余时间(单位S)
+  69   2          {
+  70   3              if(fan_mode==1)
+  71   3              {
+  72   4                  HC138_Select(1);
+  73   4                  P0 = 0Xff;
+  74   4                  L1 = 0;
+  75   4              }
+  76   3              else if(fan_mode==2)
+  77   3              {
+  78   4                  HC138_Select(1);
+  79   4                  P0 = 0Xff;
+  80   4                  L2 = 0;
+  81   4              }
+  82   3              else
+  83   3              {
+  84   4                  HC138_Select(1);
+  85   4                  P0 = 0Xff;
+  86   4                  L3 = 0;
+  87   4              }
+  88   3          }
+  89   2          else//无剩余时间时 全部LED灯灭
+  90   2          {
+  91   3              HC138_Select(1);
+  92   3              P0 = 0Xff;
+  93   3          }
+  94   2        }
+  95   1        else//无剩余时间时 全部LED灯灭
+  96   1        {
+  97   2              HC138_Select(1);
+  98   2              P0 = 0Xff;
+  99   2        }
+ 100   1      }
+ 101          void Key_Scan()
+ 102          {
+ 103   1        if(S5==0)
+ 104   1        {
+ 105   2            DelayK(20);
+ 106   2            if(S5==0)
+ 107   2            {
+ 108   3                while(S5==0)
+ 109   3                {
+ 110   4                  Display();
+ 111   4                }
+ 112   3                TIM_MAX = TIM_MAX + 60;
+ 113   3                if(TIM_MAX==180)
+ 114   3                {
+ 115   4                  TIM_MAX = 0;
+ 116   4                }
+C51 COMPILER V9.54   MAIN                                                                  03/10/2022 17:17:28 PAGE 3   
+
+ 117   3                time_ms_count = 0;
+ 118   3                time_s_count = 0;
+ 119   3                if(TIM_MAX!=0)
+ 120   3                {
+ 121   4                  time_flag = 0;  
+ 122   4                }
+ 123   3            }
+ 124   2          }
+ 125   1          if(S4==0)//模式切换
+ 126   1          {
+ 127   2            DelayK(20);
+ 128   2            if(S4==0)
+ 129   2            {
+ 130   3                while(S4==0)
+ 131   3                {
+ 132   4                  Display();
+ 133   4                }
+ 134   3                fan_mode++;
+ 135   3                if(fan_mode>=4)
+ 136   3                {
+ 137   4                  fan_mode = 1;
+ 138   4                }
+ 139   3            }
+ 140   2          }
+ 141   1          if(S6==0)
+ 142   1          {
+ 143   2              DelayK(20);
+ 144   2              if(S6==0)
+ 145   2              {
+ 146   3                while(S6==0)
+ 147   3                {
+ 148   4                  Display();
+ 149   4                }
+ 150   3                time_ms_count = 0;
+ 151   3                time_s_count = 0;
+ 152   3                time_flag  = 1;
+ 153   3              }
+ 154   2              
+ 155   2          }
+ 156   1          if(S7==0)
+ 157   1          {
+ 158   2              DelayK(20);
+ 159   2              if(S7==0)
+ 160   2              {
+ 161   3                while(S7==0)
+ 162   3                {
+ 163   4                  Display();
+ 164   4                }
+ 165   3                display_flag = !display_flag;
+ 166   3              }
+ 167   2              
+ 168   2          }
+ 169   1      
+ 170   1      }
+ 171          void Display()
+ 172          {
+ 173   1        if(display_flag==0)
+ 174   1        {
+ 175   2            Display_SEG_Bit(1,16);
+ 176   2            Display_SEG_Bit(3,16);
+ 177   2            Display_SEG_Bit(2,fan_mode);
+ 178   2            Display_SEG_Bit(5,remain_time/1000%10);
+C51 COMPILER V9.54   MAIN                                                                  03/10/2022 17:17:28 PAGE 4   
+
+ 179   2            Display_SEG_Bit(6,remain_time/100%10);
+ 180   2            Display_SEG_Bit(7,remain_time/10%10);
+ 181   2            Display_SEG_Bit(8,remain_time%10);
+ 182   2        }
+ 183   1        else
+ 184   1        {
+ 185   2            Display_SEG_Bit(1,16);
+ 186   2            Display_SEG_Bit(3,16);
+ 187   2            Display_SEG_Bit(2,4);
+ 188   2            Display_SEG_Bit(6,temperature/10%10);
+ 189   2            Display_SEG_Bit(7,temperature%10);
+ 190   2            Display_SEG_Bit(8,12);
+ 191   2        }
+ 192   1      }
+ 193          void Fan_ModeControl()
+ 194          {
+ 195   1        if(fan_mode==1)
+ 196   1        {
+ 197   2          PWM_MAX = 20;
+ 198   2        }
+ 199   1        else if(fan_mode==2)
+ 200   1        {
+ 201   2          PWM_MAX = 30;
+ 202   2        }
+ 203   1        else
+ 204   1        {
+ 205   2          PWM_MAX = 70;
+ 206   2        }
+ 207   1      }
+ 208          void FAN_Control()
+ 209          {
+ 210   1        if(time_flag==0)//定时剩余时间标志位 0：存在剩余时间  1：无剩余时间
+ 211   1        {
+ 212   2            remain_time = TIM_MAX-time_s_count;//计算定时剩余时间
+ 213   2            if(pwm_fan_flag==1)
+ 214   2            {
+ 215   3              P34 = 1;
+ 216   3            }
+ 217   2            else
+ 218   2            {
+ 219   3              P34 = 0;
+ 220   3            }
+ 221   2        }
+ 222   1        else//无剩余时间时 P34低电平
+ 223   1        {
+ 224   2            remain_time = 0;
+ 225   2            P34 = 0;
+ 226   2        }
+ 227   1      }
+ 228          void HC138_Select(unsigned char i)
+ 229          {
+ 230   1        switch(i)
+ 231   1        {
+ 232   2          case 1://LED
+ 233   2              HC138_A = 0;
+ 234   2              HC138_B = 0;
+ 235   2              HC138_C = 1;
+ 236   2              break;
+ 237   2          case 2://SEG
+ 238   2              HC138_A = 1;
+ 239   2              HC138_B = 1;
+ 240   2              HC138_C = 1;
+C51 COMPILER V9.54   MAIN                                                                  03/10/2022 17:17:28 PAGE 5   
+
+ 241   2              break;
+ 242   2          case 3://Bit
+ 243   2              HC138_A = 0;
+ 244   2              HC138_B = 1;
+ 245   2              HC138_C = 1;
+ 246   2              break;
+ 247   2          case 4://达林顿管阵列 取反门
+ 248   2              HC138_A = 1;
+ 249   2              HC138_B = 0;
+ 250   2              HC138_C = 1;
+ 251   2              break;
+ 252   2          default:break;
+ 253   2        }
+ 254   1      }
+ 255          void initTimer(void)
+ 256          {
+ 257   1        //定时10us
+ 258   1        TMOD=0X00;//用作定时器，定时器工作于模式0：即16位自动重装载定时器
+ 259   1        TH0=(65536-10)/256;//定时器0高8位寄存器
+ 260   1        TL0=(65536-10)%256;
+ 261   1        EA=1;
+ 262   1        ET0=1;//定时器0中断开关
+ 263   1        TR0=1;//定时器0开始计数
+ 264   1      }
+ 265          void Timer0() interrupt 1
+ 266          {
+ 267   1        pwm_count++;
+ 268   1        if(pwm_count==100)//实现定时周期T=10*100=1000us=1ms，即频率f=1KHz
+ 269   1        {
+ 270   2          pwm_count=0;
+ 271   2          if(TIM_MAX!=0)
+ 272   2          {
+ 273   3            time_ms_count++;
+ 274   3            if(time_ms_count>=1000)
+ 275   3            {
+ 276   4              time_ms_count = 0;
+ 277   4              time_s_count++;
+ 278   4              if(time_s_count>=TIM_MAX)
+ 279   4              {
+ 280   5                time_s_count = 0;
+ 281   5                time_flag  = 1;
+ 282   5              }
+ 283   4            }
+ 284   3          }
+ 285   2          else
+ 286   2          {
+ 287   3              time_ms_count = 0;
+ 288   3              time_s_count = 0;
+ 289   3              time_flag = 1;
+ 290   3              remain_time = 0;
+ 291   3          }
+ 292   2          
+ 293   2        }
+ 294   1        if(pwm_count<PWM_MAX)//根据MAX改变占空比
+ 295   1        {
+ 296   2            pwm_fan_flag=1;
+ 297   2        }
+ 298   1        else
+ 299   1        {
+ 300   2            pwm_fan_flag=0;
+ 301   2        }
+ 302   1      }
+C51 COMPILER V9.54   MAIN                                                                  03/10/2022 17:17:28 PAGE 6   
+
+ 303          void DelayK(unsigned char t)
+ 304          {
+ 305   1        while(t--)
+ 306   1        {
+ 307   2          Display();
+ 308   2        }
+ 309   1      }
+ 310          void Delay_SEG(unsigned int times)    //@12.000MHz
+ 311          {
+ 312   1        unsigned char i,j;
+ 313   1        unsigned int n;
+ 314   1        for(n = 0;n < times;n++)
+ 315   1        {
+ 316   2          i = 12;
+ 317   2          j = 50;
+ 318   2          do
+ 319   2          {
+ 320   3            while (--j);
+ 321   3          }
+ 322   2          while (--i);
+ 323   2        }
+ 324   1      }
+ 325          void Display_SEG_Bit(unsigned char pos,unsigned char value)
+ 326          {
+ 327   1        HC138_Select(3);//位选
+ 328   1        P0 = 0x00;//关闭所有数码管
+ 329   1        P0 = (0x01<<(pos-1));
+ 330   1        HC138_Select(2);//段选
+ 331   1        P0 = 0xFF;//关闭所有段选
+ 332   1        P0 = SMG_duanma[value];
+ 333   1        Delay_SEG(1);
+ 334   1        P0 = 0xFF;//消影
+ 335   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    714    ----
+   CONSTANT SIZE    =     19    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     15       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,719 @@
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: E:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main.l
+                    -st) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*******************************************************************************  
+   2          * Œƒº˛√˚≥∆£∫Õ®π˝ ±÷”–æ∆¨DS1302œ‘ æº∞µ˜’˚ ±º‰ µ—È
+   3          *  µ—È≈‰÷√£∫J13Ã¯œﬂ≈‰÷√Œ™IO∑Ω Ω£¨J5≈‰÷√Œ™BTN°¢J2≈‰÷√Œ™1-3∫Õ2-4
+   4          *  µ—Èœ÷œÛ£∫∞¥œ¬S7∞¥º¸«–ªªµ˜’˚ ±º‰ΩÁ√Ê°¢S6º” ±/∑÷/√Î°¢S5ºı ±/∑÷/√Î
+   5          * ”≤º˛ª∑æ≥£∫IAP15F2K61S2µ•∆¨ª˙£¨µ•∆¨ª˙ƒ⁄≤ø’Òµ¥∆˜∆µ¬ £∫12M
+   6          * ◊¢“‚ ¬œÓ£∫“™”√µΩ_nop_()±ÿ–Î“™∞¸∫¨intrins.hÕ∑Œƒº˛
+   7          *******************************************************************************/
+   8          #include "stc15.h"
+   9          #include "ds1302.h"
+  10          #include "onewire.h"
+  11          unsigned char  inittime[] = {58,59,23,5,1,3,22};//√Î-∑÷- ±-»’-‘¬-–«∆⁄-ƒÍ∑›
+  12          unsigned char  alarm_hour,alarm_min,alarm_sec;
+  13          unsigned int temperature;
+  14          unsigned char gettime[7];
+  15          unsigned char  SMG_duanma[18]=
+  16          {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,
+  17               0x80,0x90,0x88,0x80,0xc6,0xc0,0x86,0x8e,0xbf,0x7f
+  18          };
+  19          unsigned char displaytime_flag  = 0;
+  20          unsigned char displayalarm_flag = 0;
+  21          unsigned char count = 0;
+  22          unsigned char led_count = 0;
+  23          unsigned char ledtime_count = 0;
+  24          unsigned char led_flag = 0;
+  25          unsigned char alarm_ring_flag = 1;
+  26          unsigned char time_alarm_flag = 0;
+  27          unsigned char shanshuo_flag = 0;
+  28          sbit HC138_A = P2^5;
+  29          sbit HC138_B = P2^6;
+  30          sbit HC138_C = P2^7;
+  31          sbit LED1 = P0^0;
+  32          sbit S7 = P3^0;
+  33          sbit S6 = P3^1;
+  34          sbit S5 = P3^2;
+  35          sbit S4 = P3^3;
+  36          void Alarm_LED();
+  37          void ds1302_init();
+  38          void readtime();
+  39          void stoptime(void);
+  40          void starttime(void);
+  41          void Key_Scan();
+  42          void initTimer0();
+  43          void HC138_Select(unsigned char i);
+  44          void DelayKTime(unsigned char t);
+  45          void Display_SEG_Bit(unsigned char pos,unsigned char value);
+  46          void DelaySMG(unsigned int times);
+  47          void displaytime();
+  48          void display_temperature();
+  49          void main()
+  50          {
+  51   1        HC138_Select(4);
+  52   1        P0=0X00;
+  53   1        HC138_Select(1);
+  54   1        P0=0XFF;
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 2   
+
+  55   1        ds1302_init();
+  56   1        initTimer0();
+  57   1        while(1)
+  58   1        {
+  59   2          temperature = (unsigned int)(read_temperature()); 
+  60   2          readtime();
+  61   2          Key_Scan();
+  62   2          Alarm_LED();
+  63   2          displaytime();
+  64   2        }
+  65   1      }
+  66          
+  67          void ds1302_init()
+  68          {
+  69   1        unsigned char i,add = 0x80;
+  70   1        write(0x8e,0x00);
+  71   1        for(i=0;i<7;i++)
+  72   1        {
+  73   2          write(add,inittime[i]);
+  74   2          add = add+2;
+  75   2        }
+  76   1        write(0x8e,0x80);
+  77   1      }
+  78          void readtime()
+  79          {
+  80   1        unsigned char i,add = 0x81;
+  81   1        if(displaytime_flag==0)
+  82   1        {
+  83   2          write(0x8e,0x00);
+  84   2          for(i=0;i<7;i++)
+  85   2          {
+  86   3            gettime[i] = read(add);
+  87   3            add = add+2;
+  88   3          }
+  89   2          write(0x8e,0x80);
+  90   2        }
+  91   1      }
+  92          void Display_SEG_Bit(unsigned char pos,unsigned char value)
+  93          {
+  94   1        HC138_Select(3);//Œª—°
+  95   1        P0 = 0x00;
+  96   1        P0 = 0x01<<(pos-1);
+  97   1        HC138_Select(2);//∂Œ—°
+  98   1        P0 = 0xff;
+  99   1        P0 = SMG_duanma[value];
+ 100   1        DelaySMG(1);
+ 101   1        P0 = 0xff;
+ 102   1      }
+ 103          void HC138_Select(unsigned char i)
+ 104          {
+ 105   1        switch(i)
+ 106   1        {
+ 107   2          case 1://LED
+ 108   2              HC138_A = 0;
+ 109   2              HC138_B = 0;
+ 110   2              HC138_C = 1;
+ 111   2              break;
+ 112   2          case 2://SEG
+ 113   2              HC138_A = 1;
+ 114   2              HC138_B = 1;
+ 115   2              HC138_C = 1;
+ 116   2              break;
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 3   
+
+ 117   2          case 3://Bit
+ 118   2              HC138_A = 0;
+ 119   2              HC138_B = 1;
+ 120   2              HC138_C = 1;
+ 121   2              break;
+ 122   2          case 4://¥Ô¡÷∂Ÿπ‹’Û¡– »°∑¥√≈
+ 123   2              HC138_A = 1;
+ 124   2              HC138_B = 0;
+ 125   2              HC138_C = 1;
+ 126   2              break;
+ 127   2          default:break;
+ 128   2        }
+ 129   1      }
+ 130          void DelaySMG(unsigned int times)   //@12.000MHz
+ 131          {
+ 132   1        unsigned char i,j;
+ 133   1        unsigned int n;
+ 134   1        for(n = 0;n < times;n++)
+ 135   1        {
+ 136   2          i = 12;
+ 137   2          j = 50;
+ 138   2          do
+ 139   2          {
+ 140   3            while (--j);
+ 141   3          }
+ 142   2          while (--i);
+ 143   2        }
+ 144   1      
+ 145   1      }
+ 146          void displaytime()
+ 147          {
+ 148   1        if(time_alarm_flag==0)
+ 149   1        {
+ 150   2        if(displaytime_flag==0)
+ 151   2        {
+ 152   3          Display_SEG_Bit(1,gettime[2]/10);// ±µƒ ÆŒª
+ 153   3          Display_SEG_Bit(2,gettime[2]%10);// ±µƒ∏ˆŒª
+ 154   3          Display_SEG_Bit(3,16);//-
+ 155   3          Display_SEG_Bit(4,gettime[1]/10);//∑÷µƒ ÆŒª
+ 156   3          Display_SEG_Bit(5,gettime[1]%10);//∑÷µƒ∏ˆŒª
+ 157   3          Display_SEG_Bit(6,16);//-
+ 158   3          Display_SEG_Bit(7,gettime[0]/10);//√Îµƒ ÆŒª
+ 159   3          Display_SEG_Bit(8,gettime[0]%10);//√Îµƒ∏ˆŒª
+ 160   3        }
+ 161   2        else if(displaytime_flag==1)
+ 162   2        {
+ 163   3          Display_SEG_Bit(3,16);//-
+ 164   3          Display_SEG_Bit(4,gettime[1]/10);//∑÷µƒ ÆŒª
+ 165   3          Display_SEG_Bit(5,gettime[1]%10);//∑÷µƒ∏ˆŒª
+ 166   3          Display_SEG_Bit(6,16);//-
+ 167   3          Display_SEG_Bit(7,gettime[0]/10);//√Îµƒ ÆŒª
+ 168   3          Display_SEG_Bit(8,gettime[0]%10);//√Îµƒ∏ˆŒª
+ 169   3          if(shanshuo_flag==0)
+ 170   3          {
+ 171   4          Display_SEG_Bit(1,gettime[2]/10);// ±µƒ ÆŒª
+ 172   4          Display_SEG_Bit(2,gettime[2]%10);// ±µƒ∏ˆŒª
+ 173   4          
+ 174   4          }
+ 175   3          else
+ 176   3          {
+ 177   4              HC138_Select(3);//Œª—°
+ 178   4              P0 = 0x00;
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 4   
+
+ 179   4          }
+ 180   3        }
+ 181   2        else if(displaytime_flag==2)
+ 182   2        {
+ 183   3        
+ 184   3          Display_SEG_Bit(1,gettime[2]/10);// ±µƒ ÆŒª
+ 185   3          Display_SEG_Bit(2,gettime[2]%10);// ±µƒ∏ˆŒª
+ 186   3          Display_SEG_Bit(3,16);//-
+ 187   3          Display_SEG_Bit(6,16);//-
+ 188   3          Display_SEG_Bit(7,gettime[0]/10);//√Îµƒ ÆŒª
+ 189   3          Display_SEG_Bit(8,gettime[0]%10);//√Îµƒ∏ˆŒª
+ 190   3          if(shanshuo_flag==0)
+ 191   3          {
+ 192   4      
+ 193   4          Display_SEG_Bit(4,gettime[1]/10);//∑÷µƒ ÆŒª
+ 194   4          Display_SEG_Bit(5,gettime[1]%10);//∑÷µƒ∏ˆŒª
+ 195   4      
+ 196   4          }
+ 197   3          else
+ 198   3          {
+ 199   4              HC138_Select(3);//Œª—°
+ 200   4              P0 = 0x00;
+ 201   4      
+ 202   4          }
+ 203   3        }
+ 204   2        else
+ 205   2        {
+ 206   3          Display_SEG_Bit(1,gettime[2]/10);// ±µƒ ÆŒª
+ 207   3          Display_SEG_Bit(2,gettime[2]%10);// ±µƒ∏ˆŒª
+ 208   3          Display_SEG_Bit(3,16);//-
+ 209   3          Display_SEG_Bit(4,gettime[1]/10);//∑÷µƒ ÆŒª
+ 210   3          Display_SEG_Bit(5,gettime[1]%10);//∑÷µƒ∏ˆŒª
+ 211   3          Display_SEG_Bit(6,16);//-
+ 212   3          if(shanshuo_flag==0)
+ 213   3          {
+ 214   4      
+ 215   4          Display_SEG_Bit(7,gettime[0]/10);//√Îµƒ ÆŒª
+ 216   4          Display_SEG_Bit(8,gettime[0]%10);//√Îµƒ∏ˆŒª
+ 217   4          }
+ 218   3          else
+ 219   3          {
+ 220   4              HC138_Select(3);//Œª—°
+ 221   4              P0 = 0x00;
+ 222   4          }
+ 223   3        }
+ 224   2      }
+ 225   1        else
+ 226   1        {
+ 227   2          if(displayalarm_flag==0)
+ 228   2        {
+ 229   3          //ƒ÷÷”- ±
+ 230   3        
+ 231   3          Display_SEG_Bit(1,alarm_hour/10);// ±µƒ ÆŒª
+ 232   3          Display_SEG_Bit(2,alarm_hour%10);// ±µƒ∏ˆŒª
+ 233   3          Display_SEG_Bit(3,16);//-
+ 234   3          Display_SEG_Bit(4,alarm_min/10);//∑÷µƒ ÆŒª
+ 235   3          Display_SEG_Bit(5,alarm_min%10);//∑÷µƒ∏ˆŒª
+ 236   3          Display_SEG_Bit(6,16);//-
+ 237   3          Display_SEG_Bit(7,alarm_sec/10);//√Îµƒ ÆŒª
+ 238   3          Display_SEG_Bit(8,alarm_sec%10);//√Îµƒ∏ˆŒª
+ 239   3        }
+ 240   2        else if(displayalarm_flag==1)
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 5   
+
+ 241   2        {
+ 242   3          //ƒ÷÷”- ±
+ 243   3          Display_SEG_Bit(3,16);//-
+ 244   3          Display_SEG_Bit(4,alarm_min/10);//∑÷µƒ ÆŒª
+ 245   3          Display_SEG_Bit(5,alarm_min%10);//∑÷µƒ∏ˆŒª
+ 246   3          Display_SEG_Bit(6,16);//-
+ 247   3          Display_SEG_Bit(7,alarm_sec/10);//√Îµƒ ÆŒª
+ 248   3          Display_SEG_Bit(8,alarm_sec%10);//√Îµƒ∏ˆŒª
+ 249   3          if(shanshuo_flag==0)
+ 250   3          {
+ 251   4          Display_SEG_Bit(1,alarm_hour/10);// ±µƒ ÆŒª
+ 252   4          Display_SEG_Bit(2,alarm_hour%10);// ±µƒ∏ˆŒª
+ 253   4          }
+ 254   3          else
+ 255   3          {
+ 256   4              HC138_Select(3);//Œª—°
+ 257   4              P0 = 0x00;
+ 258   4          }
+ 259   3        }
+ 260   2        else if(displayalarm_flag==2)
+ 261   2        {
+ 262   3          //ƒ÷÷”-∑÷
+ 263   3          Display_SEG_Bit(1,alarm_hour/10);// ±µƒ ÆŒª
+ 264   3          Display_SEG_Bit(2,alarm_hour%10);// ±µƒ∏ˆŒª
+ 265   3          Display_SEG_Bit(3,16);//-
+ 266   3          Display_SEG_Bit(6,16);//-
+ 267   3          Display_SEG_Bit(7,alarm_sec/10);//√Îµƒ ÆŒª
+ 268   3          Display_SEG_Bit(8,alarm_sec%10);//√Îµƒ∏ˆŒª
+ 269   3          if(shanshuo_flag==0)
+ 270   3          {
+ 271   4          Display_SEG_Bit(4,alarm_min/10);//∑÷µƒ ÆŒª
+ 272   4          Display_SEG_Bit(5,alarm_min%10);//∑÷µƒ∏ˆŒª
+ 273   4          }
+ 274   3          else
+ 275   3          {
+ 276   4              HC138_Select(3);//Œª—°
+ 277   4              P0 = 0x00;
+ 278   4          }
+ 279   3        }
+ 280   2        else 
+ 281   2        {
+ 282   3          //ƒ÷÷”-√Î
+ 283   3          Display_SEG_Bit(1,alarm_hour/10);// ±µƒ ÆŒª
+ 284   3          Display_SEG_Bit(2,alarm_hour%10);// ±µƒ∏ˆŒª
+ 285   3          Display_SEG_Bit(3,16);//-
+ 286   3          Display_SEG_Bit(4,alarm_min/10);//∑÷µƒ ÆŒª
+ 287   3          Display_SEG_Bit(5,alarm_min%10);//∑÷µƒ∏ˆŒª
+ 288   3          Display_SEG_Bit(6,16);//-
+ 289   3          if(shanshuo_flag==0)
+ 290   3          {
+ 291   4      
+ 292   4            Display_SEG_Bit(7,alarm_sec/10);//√Îµƒ ÆŒª
+ 293   4            Display_SEG_Bit(8,alarm_sec%10);//√Îµƒ∏ˆŒª
+ 294   4          }
+ 295   3          else
+ 296   3          {
+ 297   4              HC138_Select(3);//Œª—°
+ 298   4              P0 = 0x00;
+ 299   4          }
+ 300   3        }
+ 301   2      }
+ 302   1      }
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 6   
+
+ 303          void DelayKTime(unsigned char t)
+ 304          {
+ 305   1        while(t--)
+ 306   1        {
+ 307   2          alarm_ring_flag=1;
+ 308   2          displaytime();
+ 309   2        }
+ 310   1      }
+ 311          void Key_Scan()
+ 312          {
+ 313   1        if(S7==0)
+ 314   1        {
+ 315   2          DelayKTime(25);
+ 316   2          if(S7==0)
+ 317   2          {
+ 318   3            while(S7==0)
+ 319   3            {
+ 320   4              alarm_ring_flag=1;
+ 321   4                displaytime();
+ 322   4            }
+ 323   3            if(alarm_ring_flag==0)//µΩ¥Ôƒ÷÷” ±º‰…Ë∂® ±º‰±Í÷æ£¨0£∫ƒ÷÷”’˝‘⁄œÏ£¨1£∫ƒ÷÷”‘›Œ¥µΩ ±º‰ªÚ’ﬂΩ´ƒ÷÷”“—πÿ±’
+ 324   3            {
+ 325   4                ET1 = 0;
+ 326   4                TR1 = 0;
+ 327   4                ledtime_count = 0;
+ 328   4                led_flag = 0;
+ 329   4                alarm_ring_flag=1;
+ 330   4            }
+ 331   3            else
+ 332   3            {
+ 333   4                if(time_alarm_flag==1)// ±º‰/ƒ÷÷”œ‘ æ±Í÷æ£¨0£∫ ±º‰œ‘ æ   1£∫ƒ÷÷”œ‘ æ
+ 334   4                {
+ 335   5                  //µ±∞¥œ¬S7 ±,»Ù¥À ±‘⁄ƒ÷÷”œ‘ æ£¨‘Ú«–ªªŒ™ ±º‰œ‘ æΩÁ√Ê
+ 336   5                    time_alarm_flag = 0;
+ 337   5                    starttime();
+ 338   5                    displaytime_flag = 0;
+ 339   5                    displayalarm_flag = 0;
+ 340   5                }
+ 341   4                else
+ 342   4                {
+ 343   5                  //∑Ò‘Ú£¨‘Ú¥À∞¥º¸Œ™ ±º‰µ˜’˚∞¥º¸
+ 344   5                    time_alarm_flag = 0;
+ 345   5                    displaytime_flag++;
+ 346   5                }
+ 347   4                if((displaytime_flag==1)||(displaytime_flag==2)||(displaytime_flag==3))
+ 348   4                {
+ 349   5                    stoptime();
+ 350   5                }
+ 351   4                else if(displaytime_flag==4)
+ 352   4                {
+ 353   5                    starttime();
+ 354   5                    displaytime_flag = 0;
+ 355   5                }
+ 356   4            }
+ 357   3          }
+ 358   2            
+ 359   2          
+ 360   2        }
+ 361   1        
+ 362   1        
+ 363   1          if(S6==0)
+ 364   1        {
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 7   
+
+ 365   2          DelayKTime(25);
+ 366   2          
+ 367   2          if(S6==0)
+ 368   2          {
+ 369   3            while(S6==0)
+ 370   3            {
+ 371   4              alarm_ring_flag=1;
+ 372   4                displaytime();
+ 373   4            }
+ 374   3            if(alarm_ring_flag==0)//µΩ¥Ôƒ÷÷” ±º‰…Ë∂® ±º‰±Í÷æ£¨0£∫ƒ÷÷”’˝‘⁄œÏ£¨1£∫ƒ÷÷”‘›Œ¥µΩ ±º‰ªÚ’ﬂΩ´ƒ÷÷”“—πÿ±’
+ 375   3            {
+ 376   4                ET1 = 0;
+ 377   4                TR1 = 0;
+ 378   4                ledtime_count = 0;
+ 379   4                led_flag = 0;
+ 380   4                alarm_ring_flag=1;
+ 381   4            }
+ 382   3      //      time_alarm_flag = 0;
+ 383   3            else
+ 384   3            {
+ 385   4                if(time_alarm_flag==0)// ±º‰/ƒ÷÷”œ‘ æ±Í÷æ£¨0£∫ ±º‰œ‘ æ   1£∫ƒ÷÷”œ‘ æ
+ 386   4                {
+ 387   5                  //µ±∞¥œ¬S6 ±,»Ù¥À ±‘⁄ ±º‰œ‘ æ£¨‘Ú«–ªªŒ™ƒ÷÷”œ‘ æΩÁ√Ê
+ 388   5                    time_alarm_flag = 1;
+ 389   5                    starttime();
+ 390   5                    displayalarm_flag = 0;
+ 391   5                    displaytime_flag = 0;
+ 392   5                }
+ 393   4                else
+ 394   4                {
+ 395   5                  //∑Ò‘Ú£¨‘Ú¥À∞¥º¸Œ™ ±º‰µ˜’˚∞¥º¸
+ 396   5                    time_alarm_flag = 1;
+ 397   5                    displayalarm_flag++;
+ 398   5                }
+ 399   4                if(displayalarm_flag==4)
+ 400   4                {
+ 401   5                    starttime();
+ 402   5                    displayalarm_flag = 0;
+ 403   5                    ledtime_count = 0;//√ø¥Œ…Ë÷√ÕÍƒ÷÷”∫Û∂º“™÷ÿ–¬º∆ ˝5sµƒ ±º‰
+ 404   5                    ET1 = 1;
+ 405   5                }
+ 406   4          }
+ 407   3          }
+ 408   2        }
+ 409   1        
+ 410   1        
+ 411   1          if(S5==0)
+ 412   1        {
+ 413   2          DelayKTime(25);
+ 414   2          if(S5==0)
+ 415   2          {
+ 416   3            while(S5==0)
+ 417   3            {
+ 418   4              alarm_ring_flag=1;
+ 419   4                displaytime();
+ 420   4            }
+ 421   3            if(alarm_ring_flag==0)//µΩ¥Ôƒ÷÷” ±º‰…Ë∂® ±º‰±Í÷æ£¨0£∫ƒ÷÷”’˝‘⁄œÏ£¨1£∫ƒ÷÷”‘›Œ¥µΩ ±º‰ªÚ’ﬂΩ´ƒ÷÷”“—πÿ±’
+ 422   3            {
+ 423   4                ET1 = 0;
+ 424   4                TR1 = 0;
+ 425   4                ledtime_count = 0;
+ 426   4                led_flag = 0;
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 8   
+
+ 427   4                alarm_ring_flag=1;
+ 428   4            }
+ 429   3            else
+ 430   3            {
+ 431   4                if(displaytime_flag==1)
+ 432   4                {
+ 433   5                  gettime[2]++;
+ 434   5                  if(gettime[2]==24)
+ 435   5                  {
+ 436   6                    gettime[2] = 0;
+ 437   6                  }
+ 438   5            }
+ 439   4            
+ 440   4            if(displaytime_flag==2)
+ 441   4            {
+ 442   5                gettime[1]++;
+ 443   5                if(gettime[1]==60)
+ 444   5                {
+ 445   6                  gettime[1] = 0;
+ 446   6                }
+ 447   5            } 
+ 448   4            if(displaytime_flag==3)
+ 449   4            {
+ 450   5                gettime[0]++;
+ 451   5                if(gettime[0]==60)
+ 452   5                {
+ 453   6                  gettime[0] = 0;
+ 454   6                }
+ 455   5            }
+ 456   4            
+ 457   4            if(displayalarm_flag==1)
+ 458   4            {
+ 459   5                alarm_hour++;
+ 460   5                if(alarm_hour==24)
+ 461   5                {
+ 462   6                    alarm_hour = 0;
+ 463   6                }
+ 464   5            }
+ 465   4            
+ 466   4            if(displayalarm_flag==2)
+ 467   4            {
+ 468   5                alarm_min++;
+ 469   5                if(alarm_min==60)
+ 470   5                {
+ 471   6                    alarm_min = 0;
+ 472   6                }
+ 473   5            }
+ 474   4            if(displayalarm_flag==3)
+ 475   4            {
+ 476   5                alarm_sec++;
+ 477   5                if(alarm_sec==60)
+ 478   5                {
+ 479   6                    alarm_sec = 0;
+ 480   6                }
+ 481   5            }
+ 482   4            
+ 483   4          }
+ 484   3        }
+ 485   2        }
+ 486   1            if(S4==0)
+ 487   1            {
+ 488   2              DelayKTime(25);
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 9   
+
+ 489   2              if(S4==0)
+ 490   2              {
+ 491   3                while(S4==0)
+ 492   3                {
+ 493   4      //        displaytime();
+ 494   4              //œ‘ æŒ¬∂»
+ 495   4                  //alarm_ring_flag=1;
+ 496   4                  if((displaytime_flag==0)&&(displayalarm_flag==0))
+ 497   4                  {
+ 498   5                    temperature = (unsigned int)(read_temperature()); 
+ 499   5                    display_temperature();
+ 500   5                    readtime();
+ 501   5                    Alarm_LED();
+ 502   5                  }
+ 503   4                }
+ 504   3            if(alarm_ring_flag==0)//µΩ¥Ôƒ÷÷” ±º‰…Ë∂® ±º‰±Í÷æ£¨0£∫ƒ÷÷”’˝‘⁄œÏ£¨1£∫ƒ÷÷”‘›Œ¥µΩ ±º‰ªÚ’ﬂΩ´ƒ÷÷”“—πÿ±’
+ 505   3            {
+ 506   4              ET1 = 0;
+ 507   4              TR1 = 0;
+ 508   4              ledtime_count = 0;
+ 509   4              led_flag = 0;
+ 510   4              alarm_ring_flag=1;
+ 511   4            }
+ 512   3            else
+ 513   3            {
+ 514   4              if(displaytime_flag==1)
+ 515   4              {
+ 516   5                if(gettime[2]==0)
+ 517   5                {
+ 518   6                  gettime[2] = 24;
+ 519   6                }
+ 520   5                gettime[2]--;
+ 521   5              
+ 522   5              }
+ 523   4             if(displaytime_flag==2)
+ 524   4            {
+ 525   5                if(gettime[1]==0)
+ 526   5                {
+ 527   6                  gettime[1] = 60;
+ 528   6                }
+ 529   5                gettime[1]--;
+ 530   5              
+ 531   5            } 
+ 532   4            if(displaytime_flag==3)
+ 533   4            {
+ 534   5              if(gettime[0]==0)
+ 535   5              {
+ 536   6                gettime[0] = 60;
+ 537   6              }
+ 538   5              gettime[0]--;
+ 539   5              
+ 540   5            }
+ 541   4            
+ 542   4            if(displayalarm_flag==1)
+ 543   4            {
+ 544   5              if(alarm_hour==0)
+ 545   5              {
+ 546   6                alarm_hour = 24;
+ 547   6              }
+ 548   5              alarm_hour--;
+ 549   5            }
+ 550   4            
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 10  
+
+ 551   4            
+ 552   4            if(displayalarm_flag==2)
+ 553   4            {
+ 554   5              if(alarm_min==0)
+ 555   5              {
+ 556   6                alarm_min = 60;
+ 557   6              }
+ 558   5              alarm_min--;
+ 559   5            }
+ 560   4            
+ 561   4            if(displayalarm_flag==3)
+ 562   4            {
+ 563   5              if(alarm_sec==0)
+ 564   5              {
+ 565   6                alarm_sec = 60;
+ 566   6              }
+ 567   5              alarm_sec--;
+ 568   5            }
+ 569   4            
+ 570   4          }
+ 571   3          }
+ 572   2        }
+ 573   1      }
+ 574          
+ 575          void stoptime(void)
+ 576          {
+ 577   1        write(0x8E,0X00);
+ 578   1        write(0x80,gettime[0]|0x80);//‘›Õ£
+ 579   1        write(0x8E,0x80);
+ 580   1      
+ 581   1      }
+ 582          void starttime(void)
+ 583          {
+ 584   1        write(0x8E,0X00);
+ 585   1        write(0x84,gettime[2]);//ø™ º
+ 586   1        write(0x82,gettime[1]);//ø™ º
+ 587   1        write(0x80,gettime[0]&0x7f);//ø™ º
+ 588   1        write(0x8E,0x80);
+ 589   1      
+ 590   1      }
+ 591          void initTimer0()
+ 592          {
+ 593   1        TMOD = 0X00;
+ 594   1        TH0 = (65536-50000)/256;
+ 595   1        TL0 = (65536-50000)%256;
+ 596   1        
+ 597   1        TH1 = (65536-50000)/256;
+ 598   1        TL1 = (65536-50000)%256;
+ 599   1        EA = 1;
+ 600   1        ET0 =1;
+ 601   1        ET1 =1;
+ 602   1        TR0 = 1;
+ 603   1      }
+ 604          
+ 605          void Timer0()interrupt 1
+ 606          {
+ 607   1        count++;
+ 608   1        if(count>=20)
+ 609   1        {
+ 610   2          count = 0;
+ 611   2          shanshuo_flag = !shanshuo_flag;
+ 612   2        }
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 11  
+
+ 613   1      }
+ 614          
+ 615          void Timer1()interrupt 3
+ 616          {
+ 617   1        led_count++;
+ 618   1        ledtime_count++;
+ 619   1        if(led_count>=4)//ƒ÷÷”Ã· æµ∆“‘0.2sŒ™º‰∏Ù…¡À∏
+ 620   1        {
+ 621   2          led_count = 0;
+ 622   2          led_flag = !led_flag;
+ 623   2        }
+ 624   1          if(ledtime_count>=110)//ƒ÷÷”≥÷–¯ ±º‰‘º5S£¨±Í◊º100Œ™5s£¨ µ≤‚110◊Û”“ ±∏¸∫√
+ 625   1        {
+ 626   2          ledtime_count = 0;
+ 627   2          led_flag = 0;
+ 628   2          alarm_ring_flag = 1;
+ 629   2          TR1 = 0;
+ 630   2          TH1 = (65536-50000)/256;
+ 631   2          TL1 = (65536-50000)%256;
+ 632   2        }
+ 633   1      }
+ 634          void display_temperature()
+ 635          {
+ 636   1        if(temperature!=8500)
+ 637   1        {
+ 638   2            Display_SEG_Bit(6,temperature/10%10);
+ 639   2            Display_SEG_Bit(7,temperature%10);
+ 640   2            Display_SEG_Bit(8,12);
+ 641   2        }
+ 642   1      }
+ 643          void Alarm_LED()
+ 644          {
+ 645   1        if((gettime[2]==alarm_hour)&&(gettime[1]==alarm_min)&&(gettime[0]==alarm_sec))
+ 646   1        {
+ 647   2          alarm_ring_flag = 0;
+ 648   2          //ET1 = 1;
+ 649   2          TR1 = 1;
+ 650   2        }
+ 651   1        if(alarm_ring_flag==0)//µΩ¥Ôƒ÷÷” ±º‰…Ë∂® ±º‰±Í÷æ£¨0£∫ƒ÷÷”’˝‘⁄œÏ£¨1£∫ƒ÷÷”‘›Œ¥µΩ…Ë÷√ ±º‰ªÚ’ﬂΩ´ƒ÷÷”“—πÿ±’ªÚ’
+             -ﬂ≥¨π˝√˘œÏ≥¨π˝5s
+ 652   1        {
+ 653   2          if(led_flag==1)
+ 654   2          {
+ 655   3            P0 = 0XFF;
+ 656   3            HC138_Select(1);
+ 657   3            LED1 = 0;
+ 658   3          }
+ 659   2          else
+ 660   2          {
+ 661   3            P0 = 0XFF;
+ 662   3            HC138_Select(1);
+ 663   3            LED1 = 1;
+ 664   3          }
+ 665   2        }
+ 666   1        else
+ 667   1        {
+ 668   2          P0 = 0XFF;
+ 669   2          HC138_Select(1);
+ 670   2          LED1 = 1;
+ 671   2        }
+ 672   1      }
+
+C51 COMPILER V9.54   MAIN                                                                  03/02/2022 16:42:36 PAGE 12  
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1716    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     46       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
