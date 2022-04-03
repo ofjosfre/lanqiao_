@@ -1,0 +1,551 @@
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 10:43:12 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: E:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main.l
+                    -st) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*******************************************************************************  
+   2          * 文件名称：矩阵键盘实验
+   3          * 实验配置：J13跳线配置为IO方式，J5配置为KBD、J2配置为1-3和2-4
+   4          * 实验现象：当按下并松开按键时第1、2个数码管显示相应的键值，键值范围为0-15
+   5          * 硬件环境：IAP15F2K61S2单片机，单片机内部振荡器频率：12M
+   6          * 注意事项：要用到_nop_()必须要包含intrins.h头文件
+   7          *******************************************************************************/
+   8          #include <stc15.h>
+   9          #include "iic.h"
+  10          unsigned char code SMG_duanma[21]=
+  11          {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,
+  12               0x80,0x90,0x88,0x80,0xc6,0xc0,0x86,0x8e,0xbf,0x7f,0x8C,0xc1,0xc8
+  13          };//- . P U n
+  14          sbit HC138_A = P2^5;
+  15          sbit HC138_B = P2^6;
+  16          sbit HC138_C = P2^7;
+  17          sbit LED1 = P0^0;
+  18          sbit LED2 = P0^1;
+  19          sbit LED3 = P0^2;
+  20          sbit LED4 = P0^3;
+  21          
+  22          sbit LED5 = P0^4;
+  23          sbit LED6 = P0^5;
+  24          sbit LED7 = P0^6;
+  25          sbit LED8 = P0^7;
+  26          sbit C1 = P4^4;
+  27          sbit C2 = P4^2;
+  28          sbit C3 = P3^5;
+  29          sbit C4 = P3^4;
+  30          
+  31          unsigned char LED1_FLAG,LED2_FLAG;
+  32          unsigned char display_flag;
+  33          unsigned char keyVal=0;
+  34          float Vp;
+  35          unsigned char count_cmp;
+  36          unsigned int LED1_count ;
+  37          unsigned int LED3_count ;
+  38          float value_read_AIN3;
+  39          //float compare_AIN3;
+  40          void Display();
+  41          void KBD_Scan();
+  42          void LED_Control();
+  43          void display_can();
+  44          void HC138_Select(unsigned char i);
+  45          void display_ain3();
+  46          void Display_SEG_Bit(unsigned char pos,unsigned char value);
+  47          void DelayK(unsigned char t);
+  48          void delay_seg(unsigned int times);
+  49          void display_count();
+  50          void Key_Scan();
+  51          void Function_Key();
+  52          void Dianya_Comp();
+  53          void Get_Time5s();
+  54          unsigned char Read_AIN3();
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 10:43:12 PAGE 2   
+
+  55          unsigned char Read_AT24C02(unsigned char addr);
+  56          void Write_AT24C02(unsigned char addr,unsigned char dat);
+  57          void initTimer0();
+  58          void LED_Control();
+  59          void main()
+  60          {
+  61   1        HC138_Select(4);
+  62   1        P0=0X00;//关蜂鸣器、继电器
+  63   1        HC138_Select(1);
+  64   1        P0=0XFF;//关灯
+  65   1        initTimer0();
+  66   1        while(1)
+  67   1        {
+  68   2          Vp = Read_AT24C02(0x00);//读取AT24C02中存储的电压参数
+  69   2          if(Vp>50)
+  70   2          {
+  71   3            Vp = 50;
+  72   3          }
+  73   2          Vp = Vp/10.0;//缩小10倍才是真正的参数
+  74   2          value_read_AIN3 = Read_AIN3()*5.0/255;//读取模拟电压
+  75   2          Function_Key();//按键扫描、处理函数 完成显示界面切换、电压参数调整、计数值清0等
+  76   2          Get_Time5s();//根据读取到的电压值完成5S的计时
+  77   2          LED_Control();//控制L1、L2、L3灯
+  78   2          Dianya_Comp();//判断读取的电压值是否处于下降且等于电压参数
+  79   2          Display();//界面显示
+  80   2        }
+  81   1      }
+  82          void LED_Control()
+  83          {
+  84   1        if(LED1_FLAG==1)
+  85   1        {
+  86   2          HC138_Select(1);//位选
+  87   2          LED1 = 0;
+  88   2        }
+  89   1        else
+  90   1        {
+  91   2          HC138_Select(1);//位选
+  92   2          LED1 = 1;
+  93   2        }
+  94   1        if(LED2_FLAG==1)
+  95   1        {
+  96   2          HC138_Select(1);//位选
+  97   2          LED2 = 0;
+  98   2        }
+  99   1        else
+ 100   1        {
+ 101   2          HC138_Select(1);//位选
+ 102   2          LED2 = 1;
+ 103   2        }
+ 104   1        if(LED3_count >= 3)
+ 105   1        {
+ 106   2          HC138_Select(1);//位选
+ 107   2          LED3 = 0;
+ 108   2        }
+ 109   1        else if(LED3_count == 0)
+ 110   1        {
+ 111   2          HC138_Select(1);//位选
+ 112   2          LED3 = 1;
+ 113   2        }
+ 114   1        else
+ 115   1        {
+ 116   2          
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 10:43:12 PAGE 3   
+
+ 117   2        }
+ 118   1      }
+ 119          void Display()
+ 120          {
+ 121   1          if(display_flag==0)
+ 122   1          {
+ 123   2            display_ain3();
+ 124   2          }
+ 125   1          else if(display_flag==1)
+ 126   1          {
+ 127   2            display_can();
+ 128   2          }
+ 129   1          else if(display_flag==2)
+ 130   1          {
+ 131   2             display_count();
+ 132   2          }
+ 133   1          else
+ 134   1          {
+ 135   2            
+ 136   2          }
+ 137   1          
+ 138   1      }
+ 139          void Key_Scan()
+ 140          {
+ 141   1        unsigned char i;
+ 142   1        C1 = C2 = C3 = C4 = 1;//每次判断前把全部列线拉高
+ 143   1        for(i=0;i<4;i++)
+ 144   1        {
+ 145   2          P3 |= 0x0f;
+ 146   2          P3 &= ~(1<<i);//依次把每行拉低：每次只有一行拉低，其余为高
+ 147   2          if(C1==0)
+ 148   2          {
+ 149   3            DelayK(20);
+ 150   3            if(C1==0)
+ 151   3            {
+ 152   4              while(C1==0)
+ 153   4              {
+ 154   5                Display();
+ 155   5              }
+ 156   4              keyVal = i*4+1;
+ 157   4              break;
+ 158   4            }
+ 159   3          }
+ 160   2          else if(C2==0)
+ 161   2          {
+ 162   3            DelayK(20);
+ 163   3            if(C2==0)
+ 164   3            {
+ 165   4              while(C2==0)
+ 166   4              {
+ 167   5                Display();
+ 168   5              }
+ 169   4              keyVal = i*4+2;
+ 170   4              break;
+ 171   4            }
+ 172   3          }
+ 173   2          else if(C3==0)
+ 174   2          {
+ 175   3            DelayK(20);
+ 176   3            if(C3==0)
+ 177   3            {
+ 178   4              while(C3==0)
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 10:43:12 PAGE 4   
+
+ 179   4              {
+ 180   5                Display();
+ 181   5              }
+ 182   4              keyVal = i*4+3;
+ 183   4              break;
+ 184   4            }
+ 185   3          }
+ 186   2          else if(C4==0)
+ 187   2          {
+ 188   3            DelayK(20);
+ 189   3            if(C4==0)
+ 190   3            {
+ 191   4              while(C4==0)
+ 192   4              {
+ 193   5                Display();
+ 194   5              }
+ 195   4              keyVal = i*4+4;
+ 196   4              break;
+ 197   4            }
+ 198   3          }
+ 199   2        }
+ 200   1        
+ 201   1        //return keyVal;
+ 202   1      
+ 203   1      }
+ 204          void Function_Key()
+ 205          {
+ 206   1      
+ 207   1          Key_Scan();
+ 208   1          if(keyVal == 15)
+ 209   1          {
+ 210   2            keyVal = 0;
+ 211   2            LED3_count = 0;
+ 212   2            display_flag++;
+ 213   2            if(display_flag==3)
+ 214   2            {
+ 215   3              display_flag = 0;
+ 216   3            }
+ 217   2          }
+ 218   1          else if(keyVal==16)//参数+
+ 219   1          {
+ 220   2            keyVal = 0;
+ 221   2            if(display_flag==1)//有效按键
+ 222   2            {
+ 223   3              //Vp = Vp + 0.5;
+ 224   3              LED3_count = 0;
+ 225   3              if(Vp<5)
+ 226   3              {
+ 227   4                Vp = Vp + 0.5;
+ 228   4              }
+ 229   3              else
+ 230   3              {
+ 231   4                Vp = 0;
+ 232   4              }
+ 233   3              Write_AT24C02(0x00,(unsigned char)(Vp*10));
+ 234   3              
+ 235   3            }
+ 236   2            else//无效按键
+ 237   2            {
+ 238   3              LED3_count++;
+ 239   3            }
+ 240   2          }
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 10:43:12 PAGE 5   
+
+ 241   1          else if(keyVal==12)//参数-
+ 242   1          {
+ 243   2            keyVal = 0;
+ 244   2            if(display_flag==1)//有效按键
+ 245   2            {
+ 246   3              //Vp = Vp - 0.5;
+ 247   3              LED3_count = 0;
+ 248   3              if(Vp>0)
+ 249   3              {
+ 250   4                Vp = Vp - 0.5;
+ 251   4              }
+ 252   3              else
+ 253   3              {
+ 254   4                Vp = 5;
+ 255   4              }
+ 256   3              Write_AT24C02(0x00,(unsigned char)(Vp*10));
+ 257   3            }
+ 258   2            else//无效按键
+ 259   2            {
+ 260   3              LED3_count++;
+ 261   3            }
+ 262   2          }
+ 263   1          else if(keyVal==11)//清0
+ 264   1          {
+ 265   2            keyVal = 0;
+ 266   2            if(display_flag==2)//有效按键
+ 267   2            {
+ 268   3              LED3_count = 0;
+ 269   3              count_cmp = 0;
+ 270   3            }
+ 271   2            else//无效按键
+ 272   2            {
+ 273   3              LED3_count++;
+ 274   3            }
+ 275   2          }
+ 276   1          else if(keyVal!=0)//无效按键
+ 277   1          {       
+ 278   2            keyVal = 0;
+ 279   2            LED3_count++;
+ 280   2          }
+ 281   1      }
+ 282          void Dianya_Comp()
+ 283          {
+ 284   1        static int bd_flag;//等于5V
+ 285   1        static int bx_flag;//等于5V
+ 286   1        if(Vp==5)
+ 287   1        {
+ 288   2          if((unsigned int)(value_read_AIN3*100)<500)
+ 289   2          {
+ 290   3            bd_flag = 1;
+ 291   3          }
+ 292   2          if((bd_flag==1)&&((unsigned int)(value_read_AIN3*100)==(unsigned int)(Vp*100)))
+ 293   2          {
+ 294   3            bd_flag = 0;
+ 295   3            count_cmp++;
+ 296   3            if(count_cmp==100)
+ 297   3            {
+ 298   4              count_cmp = 99;
+ 299   4            }
+ 300   3          }
+ 301   2        }
+ 302   1        else
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 10:43:12 PAGE 6   
+
+ 303   1          {
+ 304   2            if((unsigned int)(value_read_AIN3*100)>(unsigned int)(Vp*100))
+ 305   2            {
+ 306   3              bx_flag = 1;
+ 307   3            }
+ 308   2            if((bx_flag == 1)&&((unsigned int)(value_read_AIN3*100)<=(unsigned int)(Vp*100)))
+ 309   2            {
+ 310   3            //计数值加1
+ 311   3              bx_flag = 0;
+ 312   3              count_cmp++;
+ 313   3              if(count_cmp==100)
+ 314   3              {
+ 315   4                count_cmp = 99;
+ 316   4              }
+ 317   3            }
+ 318   2          }
+ 319   1        if(count_cmp%2==1)
+ 320   1        {
+ 321   2          LED2_FLAG = 1;
+ 322   2        }
+ 323   1        else
+ 324   1        {
+ 325   2          LED2_FLAG = 0;
+ 326   2        }
+ 327   1      }
+ 328          void  Get_Time5s()
+ 329          {
+ 330   1        if(value_read_AIN3<Vp)
+ 331   1        {
+ 332   2          TR0 = 1;
+ 333   2        }
+ 334   1        else
+ 335   1        {
+ 336   2          TR0 = 0;
+ 337   2          LED1_count = 0;
+ 338   2          LED1_FLAG = 0;
+ 339   2        }
+ 340   1      }
+ 341          void Display_SEG_Bit(unsigned char pos,unsigned char value)
+ 342          {
+ 343   1        HC138_Select(3);//位选
+ 344   1        P0 = 0x00;//关闭所有数码管
+ 345   1        P0 = (0x01<<(pos-1));
+ 346   1        HC138_Select(2);//段选
+ 347   1        P0 = 0xFF;//关闭所有段选
+ 348   1        P0 = SMG_duanma[value];
+ 349   1        delay_seg(1);
+ 350   1        P0 = 0xFF;//消影
+ 351   1      }
+ 352          void HC138_Select(unsigned char i)
+ 353          {
+ 354   1        switch(i)
+ 355   1        {
+ 356   2          case 1://LED
+ 357   2              HC138_A = 0;
+ 358   2              HC138_B = 0;
+ 359   2              HC138_C = 1;
+ 360   2              break;
+ 361   2          case 2://SEG
+ 362   2              HC138_A = 1;
+ 363   2              HC138_B = 1;
+ 364   2              HC138_C = 1;
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 10:43:12 PAGE 7   
+
+ 365   2              break;
+ 366   2          case 3://Bit
+ 367   2              HC138_A = 0;
+ 368   2              HC138_B = 1;
+ 369   2              HC138_C = 1;
+ 370   2              break;
+ 371   2          case 4://达林顿管阵列 取反门
+ 372   2              HC138_A = 1;
+ 373   2              HC138_B = 0;
+ 374   2              HC138_C = 1;
+ 375   2              break;
+ 376   2          default:break;
+ 377   2        }
+ 378   1      }
+ 379          
+ 380          void delay_seg(unsigned int times)    //@12.000MHz
+ 381          {
+ 382   1        unsigned char i,j;
+ 383   1        unsigned int n;
+ 384   1        for(n = 0;n < times;n++)
+ 385   1        {
+ 386   2          i = 12;
+ 387   2          j = 50;
+ 388   2          do
+ 389   2          {
+ 390   3            while (--j);
+ 391   3          }
+ 392   2          while (--i);
+ 393   2        }
+ 394   1      }
+ 395          void DelayK(unsigned char t)
+ 396          {
+ 397   1        while(t--)
+ 398   1        {
+ 399   2          Display();
+ 400   2        }
+ 401   1      }
+ 402          void display_ain3()
+ 403          {
+ 404   1        unsigned int value_int_AIN3;
+ 405   1        value_int_AIN3 = (unsigned int)(value_read_AIN3*100);//3.67 367
+ 406   1        Display_SEG_Bit(1,19);
+ 407   1      //  Display_SEG_Bit(6,19);
+ 408   1        HC138_Select(3);//位选
+ 409   1        P0 = 0x00;//关闭所有数码管
+ 410   1        P0 = (0x01<<(6-1));
+ 411   1        HC138_Select(2);//段选
+ 412   1        P0 = 0xFF;//关闭所有段选
+ 413   1        P0 = SMG_duanma[value_int_AIN3/100%10]&(~0x80);
+ 414   1        delay_seg(1);
+ 415   1        P0 = 0xFF;
+ 416   1        
+ 417   1        Display_SEG_Bit(7,value_int_AIN3/10%10);
+ 418   1        Display_SEG_Bit(8,value_int_AIN3%10);
+ 419   1      }
+ 420          void display_can()
+ 421          {
+ 422   1        unsigned int Vp_can;
+ 423   1        Vp_can = (unsigned int)(Vp*100);
+ 424   1        Display_SEG_Bit(1,18);
+ 425   1      //  Display_SEG_Bit(6,19);
+ 426   1        HC138_Select(3);//位选
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 10:43:12 PAGE 8   
+
+ 427   1        P0 = 0x00;//关闭所有数码管
+ 428   1        P0 = (0x01<<(6-1));
+ 429   1        HC138_Select(2);//段选
+ 430   1        P0 = 0xFF;//关闭所有段选
+ 431   1        P0 = SMG_duanma[Vp_can/100%10]&(~0x80);
+ 432   1        delay_seg(1);
+ 433   1        
+ 434   1        Display_SEG_Bit(7,Vp_can/10%10);
+ 435   1        Display_SEG_Bit(8,Vp_can%10);
+ 436   1      }
+ 437          void display_count()
+ 438          {
+ 439   1        Display_SEG_Bit(1,20);
+ 440   1        Display_SEG_Bit(7,count_cmp/10%10);
+ 441   1        Display_SEG_Bit(8,count_cmp%10);
+ 442   1      }
+ 443          void Write_AT24C02(unsigned char addr,unsigned char dat)
+ 444          {
+ 445   1        IIC_Start();
+ 446   1        IIC_SendByte(0xA0); 
+ 447   1        IIC_WaitAck();
+ 448   1        IIC_SendByte(addr);
+ 449   1        IIC_WaitAck();
+ 450   1        IIC_SendByte(dat);
+ 451   1        IIC_WaitAck();
+ 452   1        IIC_Stop(); 
+ 453   1      }
+ 454          unsigned char Read_AT24C02(unsigned char addr)
+ 455          {
+ 456   1        unsigned char temp;
+ 457   1        IIC_Start();
+ 458   1        IIC_SendByte(0xA0); 
+ 459   1        IIC_WaitAck();
+ 460   1        IIC_SendByte(addr);
+ 461   1        IIC_WaitAck();
+ 462   1        
+ 463   1        IIC_Start();
+ 464   1        IIC_SendByte(0xA1); 
+ 465   1        IIC_WaitAck();
+ 466   1        temp = IIC_RecByte();
+ 467   1        IIC_SendAck(1);
+ 468   1        IIC_Stop(); 
+ 469   1        return temp;
+ 470   1      }
+ 471          unsigned char Read_AIN3()
+ 472          {
+ 473   1        unsigned char temp = 0;
+ 474   1        unsigned char i;
+ 475   1        for(i=0;i<2;i++)
+ 476   1        {
+ 477   2        IIC_Start();//IIC总线起始信号
+ 478   2        IIC_SendByte(0x90);//发送PCF8591的写操作地址
+ 479   2        IIC_WaitAck();//等待从机应答
+ 480   2        IIC_SendByte(0x03);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道3)。
+ 481   2        //IIC_SendByte(0x01);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道1)。
+ 482   2        IIC_WaitAck();//等待从机应答
+ 483   2        IIC_Stop();//IIC总线起始信号
+ 484   2        
+ 485   2        IIC_Start();
+ 486   2        IIC_SendByte(0x91);//发送PCF8591的读操作地址
+ 487   2        IIC_WaitAck();
+ 488   2        temp = IIC_RecByte();//读取PCF8591通道的数据 
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 10:43:12 PAGE 9   
+
+ 489   2        IIC_SendAck(1);//产生非应答信号
+ 490   2        IIC_Stop();
+ 491   2        }
+ 492   1        return temp;
+ 493   1      }
+ 494          void initTimer0()
+ 495          {
+ 496   1        TMOD = 0X00;
+ 497   1        TH0 = (65536-50000)/256;
+ 498   1        TL0 = (65536-50000)%256;
+ 499   1        EA = 1;
+ 500   1        ET0 =1;
+ 501   1      //  TR0 = 1;
+ 502   1      }
+ 503          void Timer0()interrupt 1
+ 504          {
+ 505   1        LED1_count++;
+ 506   1        if(LED1_count>100)
+ 507   1        {
+ 508   2          LED1_count = 0;
+ 509   2          LED1_FLAG = 1;
+ 510   2        }
+ 511   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1573    ----
+   CONSTANT SIZE    =     21    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     21      14
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
