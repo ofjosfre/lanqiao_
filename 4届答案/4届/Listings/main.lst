@@ -1,0 +1,461 @@
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 14:35:05 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: E:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main.l
+                    -st) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*******************************************************************************  
+   2          * 文件名称：通过时钟芯片DS1302显示时间实验
+   3          * 实验配置：J13跳线配置为IO方式，J5配置为BTN、J2配置为1-3和2-4
+   4          * 实验现象：按下S7按键切换时间与日期的显示、S6暂停时间计时
+   5          * 硬件环境：IAP15F2K61S2单片机，单片机内部振荡器频率：12M
+   6          * 注意事项：要用到_nop_()必须要包含intrins.h头文件
+   7          *******************************************************************************/
+   8          #include "stc15.h"
+   9          #include "ds1302.h"
+  10          #include "iic.h"
+  11          void ds1302_init();
+  12          void readtime();
+  13          void stoptime(void);
+  14          void starttime(void);
+  15          unsigned char  code inittime[] = {57,30,8,5,1,3,22};//秒-分-时-日-月-星期-年份
+  16          unsigned char gettime[7];
+  17          unsigned char  code SMG_duanma[18]=
+  18          {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,
+  19               0x80,0x90,0x88,0x80,0xc6,0xc0,0x86,0x8e,0xbf,0x7f
+  20          };
+  21          sbit HC138_A = P2^5;
+  22          sbit HC138_B = P2^6;
+  23          sbit HC138_C = P2^7;
+  24          sbit S7 = P3^0;
+  25          sbit S6 = P3^1;
+  26          sbit S5 = P3^2;
+  27          sbit S4 = P3^3;
+  28          sbit L1 = P0^0;
+  29          sbit L2 = P0^1;
+  30          sbit RELAY  = P0^4;
+  31          sbit BUZZER = P0^6;
+  32          unsigned char Humidity_threshold = 50;
+  33          unsigned char Humidity;
+  34          unsigned char mode_flag;//0：自动模式   1：手动模式
+  35          unsigned char alarm_flag;//0:开蜂鸣器提醒功能 1：关蜂鸣器提醒功能
+  36          unsigned char relay_flag;//0:关继电器 1：开继电器
+  37          unsigned char threshold_flag;//0:阈值调整完成 1：正在调整
+  38          void Key_Scan();
+  39          float Read_AIN3();
+  40          unsigned char Read_AT24C02(unsigned char addr);
+  41          void Write_AT24C02(unsigned char addr,unsigned char dat);
+  42          void HC138_Select(unsigned char i);
+  43          void DelayK(unsigned char t);
+  44          void Display_SEG_Bit(unsigned char pos,unsigned char value);
+  45          void DelaySMG(unsigned int times);
+  46          unsigned char Read_Humidity();
+  47          void Display_Humidity_Time();
+  48          void Display_Threshold();
+  49          void Display();
+  50          void LED_Control();
+  51          void RELAY_Control();
+  52          void ALARM_Control();
+  53          void main()
+  54          {
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 14:35:05 PAGE 2   
+
+  55   1        HC138_Select(4);
+  56   1        P0=0X00;
+  57   1        HC138_Select(1);
+  58   1        P0=0XFF;
+  59   1        Humidity_threshold = Read_AT24C02(0x00);
+  60   1        ds1302_init();
+  61   1        while(1)
+  62   1        {
+  63   2          readtime();
+  64   2          Humidity = Read_Humidity();
+  65   2          Key_Scan();
+  66   2          Display();
+  67   2          LED_Control();
+  68   2          RELAY_Control();
+  69   2          ALARM_Control();
+  70   2        }
+  71   1      }
+  72          void RELAY_Control()
+  73          {
+  74   1        if(mode_flag==1)
+  75   1        {
+  76   2          if(relay_flag==1)
+  77   2          {
+  78   3            HC138_Select(4);
+  79   3            RELAY = 1;
+  80   3            BUZZER = 0;
+  81   3      
+  82   3            P2&=0x1f;
+  83   3            
+  84   3          }
+  85   2          else
+  86   2          { 
+  87   3            HC138_Select(4);
+  88   3            RELAY = 0;
+  89   3            BUZZER = 0;
+  90   3      
+  91   3            P2&=0x1f;
+  92   3          }
+  93   2        }
+  94   1        else
+  95   1        {
+  96   2          if(threshold_flag==0)
+  97   2          {
+  98   3            if(Humidity < Humidity_threshold)
+  99   3            { 
+ 100   4              HC138_Select(4);
+ 101   4              RELAY = 1;
+ 102   4              BUZZER = 0;
+ 103   4              
+ 104   4              P2&=0x1f;
+ 105   4            }
+ 106   3            else
+ 107   3            {
+ 108   4              HC138_Select(4);
+ 109   4              RELAY = 0;
+ 110   4              BUZZER = 0;
+ 111   4      
+ 112   4              P2&=0x1f;
+ 113   4            }
+ 114   3          }
+ 115   2          else
+ 116   2          { 
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 14:35:05 PAGE 3   
+
+ 117   3            HC138_Select(4);
+ 118   3            RELAY = 0;
+ 119   3            BUZZER = 0;
+ 120   3      
+ 121   3            P2&=0x1f;
+ 122   3          }
+ 123   2        }
+ 124   1      }
+ 125          void ALARM_Control()
+ 126          {
+ 127   1        if(mode_flag==1)
+ 128   1        {
+ 129   2          if(alarm_flag==0)
+ 130   2          {
+ 131   3            if(Humidity < Humidity_threshold)
+ 132   3            {
+ 133   4              HC138_Select(4);
+ 134   4              BUZZER = 1;
+ 135   4      //        RELAY = 0;
+ 136   4              P2&=0x1f;
+ 137   4            }
+ 138   3          }
+ 139   2          else
+ 140   2          {
+ 141   3            HC138_Select(4);
+ 142   3            BUZZER = 0;
+ 143   3      //      RELAY = 0;
+ 144   3            P2&=0x1f;
+ 145   3          }
+ 146   2        }
+ 147   1        else
+ 148   1        {
+ 149   2          HC138_Select(4);
+ 150   2          BUZZER = 0;
+ 151   2      //    RELAY = 0;
+ 152   2          P2&=0x1f;
+ 153   2        }
+ 154   1      }
+ 155          void LED_Control()
+ 156          {
+ 157   1        if(mode_flag==0)
+ 158   1        {
+ 159   2          HC138_Select(1);
+ 160   2          P0=0XFF;
+ 161   2          L1 = 0;
+ 162   2        }
+ 163   1        else
+ 164   1        {
+ 165   2          HC138_Select(1);
+ 166   2          P0=0XFF;
+ 167   2          L2 = 0;
+ 168   2        }
+ 169   1      }
+ 170          void Display()
+ 171          {
+ 172   1        if((mode_flag==0)&&(threshold_flag==1))
+ 173   1        {
+ 174   2          Display_Threshold();
+ 175   2        }
+ 176   1        else
+ 177   1        {
+ 178   2          Display_Humidity_Time();
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 14:35:05 PAGE 4   
+
+ 179   2        }
+ 180   1      }
+ 181          void Display_Humidity_Time()
+ 182          {
+ 183   1        Display_SEG_Bit(1,gettime[2]/10%10);
+ 184   1        Display_SEG_Bit(2,gettime[2]%10);
+ 185   1        Display_SEG_Bit(3,16);
+ 186   1        Display_SEG_Bit(4,gettime[1]/10%10);
+ 187   1        Display_SEG_Bit(5,gettime[1]%10);
+ 188   1        Display_SEG_Bit(7,Humidity/10%10);
+ 189   1        Display_SEG_Bit(8,Humidity%10);
+ 190   1      }
+ 191          void Display_Threshold()
+ 192          {
+ 193   1        Display_SEG_Bit(1,16);
+ 194   1        Display_SEG_Bit(2,16);
+ 195   1        Display_SEG_Bit(7,Humidity_threshold/10%10);
+ 196   1        Display_SEG_Bit(8,Humidity_threshold%10);
+ 197   1      }
+ 198          void ds1302_init()
+ 199          {
+ 200   1        unsigned char i,add = 0x80;
+ 201   1        write(0x8e,0x00);
+ 202   1        for(i=0;i<7;i++)
+ 203   1        {
+ 204   2          write(add,inittime[i]);
+ 205   2          add = add+2;
+ 206   2        }
+ 207   1        write(0x8e,0x80);
+ 208   1      }
+ 209          void readtime()
+ 210          {
+ 211   1        unsigned char i,add = 0x81;
+ 212   1          write(0x8e,0x00);
+ 213   1          for(i=0;i<7;i++)
+ 214   1          {
+ 215   2            gettime[i] = read(add);
+ 216   2            add = add+2;
+ 217   2          }
+ 218   1          write(0x8e,0x80);
+ 219   1      }
+ 220          void Display_SEG_Bit(unsigned char pos,unsigned char value)
+ 221          {
+ 222   1        HC138_Select(3);//位选
+ 223   1        P0 = 0x00;
+ 224   1        P0 = 0x01<<(pos-1);
+ 225   1        HC138_Select(2);//段选
+ 226   1        P0 = 0xff;
+ 227   1        P0 = SMG_duanma[value];
+ 228   1        DelaySMG(1);
+ 229   1        P0 = 0xff;
+ 230   1      }
+ 231          void HC138_Select(unsigned char i)
+ 232          {
+ 233   1        switch(i)
+ 234   1        {
+ 235   2          case 1://LED
+ 236   2              HC138_A = 0;
+ 237   2              HC138_B = 0;
+ 238   2              HC138_C = 1;
+ 239   2              break;
+ 240   2          case 2://SEG
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 14:35:05 PAGE 5   
+
+ 241   2              HC138_A = 1;
+ 242   2              HC138_B = 1;
+ 243   2              HC138_C = 1;
+ 244   2              break;
+ 245   2          case 3://Bit
+ 246   2              HC138_A = 0;
+ 247   2              HC138_B = 1;
+ 248   2              HC138_C = 1;
+ 249   2              break;
+ 250   2          case 4://达林顿管阵列 取反门
+ 251   2              HC138_A = 1;
+ 252   2              HC138_B = 0;
+ 253   2              HC138_C = 1;
+ 254   2              break;
+ 255   2          default:break;
+ 256   2        }
+ 257   1      }
+ 258          void DelaySMG(unsigned int times)   //@12.000MHz
+ 259          {
+ 260   1        unsigned char i,j;
+ 261   1        unsigned int n;
+ 262   1        for(n = 0;n < times;n++)
+ 263   1        {
+ 264   2          i = 12;
+ 265   2          j = 50;
+ 266   2          do
+ 267   2          {
+ 268   3            while (--j);
+ 269   3          }
+ 270   2          while (--i);
+ 271   2        }
+ 272   1      
+ 273   1      }
+ 274          void DelayK(unsigned char t)
+ 275          {
+ 276   1        while(t--)
+ 277   1        {
+ 278   2        }
+ 279   1      }
+ 280          void Key_Scan()
+ 281          {
+ 282   1        if(S7==0)
+ 283   1        {
+ 284   2          DelayK(20);
+ 285   2          if(S7==0)
+ 286   2          {
+ 287   3            while(S7==0)
+ 288   3            {
+ 289   4              Display();
+ 290   4            }
+ 291   3            mode_flag = !mode_flag;
+ 292   3            if(mode_flag==1)
+ 293   3            {
+ 294   4              threshold_flag = 0;
+ 295   4            }
+ 296   3          }
+ 297   2        }
+ 298   1        
+ 299   1          if(S6==0)
+ 300   1        {
+ 301   2          DelayK(20);
+ 302   2          if(S6==0)
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 14:35:05 PAGE 6   
+
+ 303   2          {
+ 304   3            while(S6==0)
+ 305   3            {
+ 306   4              Display();
+ 307   4            }
+ 308   3            if(mode_flag==0)//自动模式下进入/退出湿度阈值调整界面
+ 309   3            {
+ 310   4              threshold_flag = !threshold_flag;
+ 311   4            }
+ 312   3            else
+ 313   3            {
+ 314   4              alarm_flag = !alarm_flag;
+ 315   4            }
+ 316   3          }
+ 317   2        }
+ 318   1      
+ 319   1          if(S5==0)
+ 320   1        {
+ 321   2          DelayK(20);
+ 322   2          if(S5==0)
+ 323   2          {
+ 324   3            while(S5==0)
+ 325   3            {
+ 326   4              Display();
+ 327   4            }
+ 328   3            if(mode_flag==1)
+ 329   3            {
+ 330   4                //手动模式下开继电器
+ 331   4              relay_flag = 1;
+ 332   4            }
+ 333   3            else
+ 334   3            {
+ 335   4                //自动模式加阈值
+ 336   4              if(threshold_flag==1)
+ 337   4              {
+ 338   5                if(Humidity_threshold<=98)
+ 339   5                  Humidity_threshold++;
+ 340   5              }
+ 341   4              Write_AT24C02(0x00,Humidity_threshold);
+ 342   4            }
+ 343   3          }
+ 344   2        }
+ 345   1        if(S4==0)
+ 346   1        {
+ 347   2          DelayK(20);
+ 348   2          if(S4==0)
+ 349   2          {
+ 350   3            while(S4==0)
+ 351   3            {
+ 352   4              Display();
+ 353   4            }
+ 354   3            if(mode_flag==1)
+ 355   3            {
+ 356   4              //手动模式下关继电器
+ 357   4              relay_flag = 0;
+ 358   4            }
+ 359   3            else
+ 360   3            {
+ 361   4              //自动模式减阈值
+ 362   4              if(threshold_flag==1)
+ 363   4              {
+ 364   5                if(Humidity_threshold>=1)
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 14:35:05 PAGE 7   
+
+ 365   5                  Humidity_threshold--;
+ 366   5              }
+ 367   4              //EEPROM存储阈值
+ 368   4              Write_AT24C02(0x00,Humidity_threshold);
+ 369   4            }
+ 370   3            
+ 371   3          }
+ 372   2        }   
+ 373   1      }
+ 374          unsigned char Read_Humidity()
+ 375          {
+ 376   1        unsigned char temp = 0;
+ 377   1        IIC_Start();//IIC总线起始信号
+ 378   1        IIC_SendByte(0x90);//发送PCF8591的写操作地址
+ 379   1        IIC_WaitAck();//等待从机应答
+ 380   1        IIC_SendByte(0x03);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道3)。
+ 381   1        //IIC_SendByte(0x01);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道1)。
+ 382   1        IIC_WaitAck();//等待从机应答
+ 383   1        IIC_Stop();//IIC总线起始信号
+ 384   1        
+ 385   1        IIC_Start();
+ 386   1        IIC_SendByte(0x91);//发送PCF8591的读操作地址
+ 387   1        IIC_WaitAck();
+ 388   1        temp = IIC_RecByte();//读取PCF8591通道的数据 
+ 389   1        IIC_SendAck(1);//产生非应答信号
+ 390   1        IIC_Stop();
+ 391   1        return (unsigned char)(temp*5.0/255*19.8);
+ 392   1      }
+ 393          void Write_AT24C02(unsigned char addr,unsigned char dat)
+ 394          {
+ 395   1        IIC_Start();//IIC总线起始信号
+ 396   1        IIC_SendByte(0xA0);//AT24C02的写设备地址 
+ 397   1        IIC_WaitAck();//等待从机PCF8591应答
+ 398   1        IIC_SendByte(addr);//要写入的内存地址
+ 399   1        IIC_WaitAck();//等待从机PCF8591应答
+ 400   1        IIC_SendByte(dat);//要写入的数据
+ 401   1        IIC_WaitAck();//等待从机PCF8591应答
+ 402   1        IIC_Stop();//IIC总线停止信号 
+ 403   1      }
+ 404          unsigned char Read_AT24C02(unsigned char addr)
+ 405          {
+ 406   1        unsigned char temp;
+ 407   1        //以下5行为伪写操作
+ 408   1        IIC_Start();//IIC总线起始信号
+ 409   1        IIC_SendByte(0xA0); //AT24C02的写设备地址
+ 410   1        IIC_WaitAck();//等待从机PCF8591的应答
+ 411   1        IIC_SendByte(addr);//要读取的内存地址
+ 412   1        IIC_WaitAck();//等待从机PCF8591应答
+ 413   1        
+ 414   1        IIC_Start();//IIC总线起始信号
+ 415   1        IIC_SendByte(0xA1);//AT24C02的读设备地址 
+ 416   1        IIC_WaitAck();//等待从机PCF8591的应答
+ 417   1        temp = IIC_RecByte();//读取目标数据
+ 418   1        IIC_SendAck(1);//产生一个非应答信号
+ 419   1        IIC_Stop(); //IIC总线停止信号 
+ 420   1        return temp;
+ 421   1      }
+ 422          
+ 423          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+C51 COMPILER V9.54   MAIN                                                                  02/10/2022 14:35:05 PAGE 8   
+
+   CODE SIZE        =    909    ----
+   CONSTANT SIZE    =     25    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     13      11
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
