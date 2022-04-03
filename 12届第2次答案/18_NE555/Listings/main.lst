@@ -1,0 +1,475 @@
+C51 COMPILER V9.54   MAIN                                                                  02/22/2022 17:13:45 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: E:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main.l
+                    -st) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*******************************************************************************  
+   2          * 文件名称：通过计数器0和定时器1采集NF555生成的脉冲频率实验
+   3          * 实验配置：J13跳线配置为IO方式，J5配置为BTN、J3配置为SIGNAL-P34（可拔下J2的任一跳线帽即可）
+   4          * 实验现象：通过计数器0和定时器1采集NF555生成的脉冲频率
+   5          * 硬件环境：IAP15F2K61S2单片机，单片机内部振荡器频率：12M
+   6          * 注意事项：要用到_nop_()必须要包含intrins.h头文件
+   7          *******************************************************************************/
+   8          #include "stc15.h"
+   9          #include "iic.h"
+  10          unsigned char code SMG_duanma[21]=
+  11          {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,
+  12               0x80,0x90,0x88,0x80,0xc6,0xc0,0x86,0x8e,0xbf,0x7f,0x8C,0xc1,0xc8
+  13          };//- . P U n
+  14          sbit HC138_A = P2^5;
+  15          sbit HC138_B = P2^6;
+  16          sbit HC138_C = P2^7;
+  17          sbit LED1 = P0^0;
+  18          sbit LED2 = P0^1;
+  19          sbit LED3 = P0^2;
+  20          sbit LED4 = P0^3;
+  21          sbit LED5 = P0^4;
+  22          sbit S7 = P3^0;
+  23          sbit S6 = P3^1;
+  24          sbit S5 = P3^2;
+  25          sbit S4 = P3^3;
+  26          unsigned char count_t = 0;
+  27          unsigned int count_f = 0;
+  28          unsigned int dat_f = 0;
+  29          unsigned int fre_can    = 60000;
+  30          unsigned int dianya_can = 600;
+  31          unsigned int dianya_ain_dianya;
+  32          unsigned int dianya_ain_light;
+  33          unsigned char display_flag;
+  34          unsigned char channel_flag;
+  35          unsigned char press_flag;
+  36          unsigned char press_count;
+  37          unsigned char led_function;
+  38          void display_fre();
+  39          void display_Time();
+  40          void display_adc();
+  41          void display();
+  42          unsigned char Read_AIN3();
+  43          unsigned char Read_AIN1();
+  44          void HC138_Select(unsigned char i);
+  45          void Display_SEG_Bit(unsigned char pos,unsigned char value);
+  46          void DelaySMG(unsigned int times);
+  47          void Delay_K(unsigned char times);
+  48          void LED_Control();
+  49          void initTimer();
+  50          void Key_Scan();
+  51          void main()
+  52          {
+  53   1          HC138_Select(4);
+  54   1          P0=0X00;
+C51 COMPILER V9.54   MAIN                                                                  02/22/2022 17:13:45 PAGE 2   
+
+  55   1          HC138_Select(1);
+  56   1          P0=0XFF;
+  57   1          initTimer();
+  58   1          while(1)
+  59   1          {
+  60   2            dianya_ain_light  = (unsigned int)((Read_AIN1()*5.0/255)*100);
+  61   2            dianya_ain_dianya = (unsigned int)((Read_AIN3()*5.0/255)*100);
+  62   2            Key_Scan();
+  63   2            display();
+  64   2            LED_Control();
+  65   2          }
+  66   1      }
+  67          void Display_SEG_Bit(unsigned char pos,unsigned char value)
+  68          {
+  69   1        HC138_Select(3);//位选
+  70   1        P0 = 0x00;
+  71   1        P0 = 0x01<<(pos-1);
+  72   1        HC138_Select(2);//段选
+  73   1        P0 = 0xff;
+  74   1        P0 = SMG_duanma[value];
+  75   1        DelaySMG(1);
+  76   1        P0 = 0xff;
+  77   1      }
+  78          void HC138_Select(unsigned char i)
+  79          {
+  80   1        switch(i)
+  81   1        {
+  82   2          case 1://LED
+  83   2              HC138_A = 0;
+  84   2              HC138_B = 0;
+  85   2              HC138_C = 1;
+  86   2              break;
+  87   2          case 2://SEG
+  88   2              HC138_A = 1;
+  89   2              HC138_B = 1;
+  90   2              HC138_C = 1;
+  91   2              break;
+  92   2          case 3://Bit
+  93   2              HC138_A = 0;
+  94   2              HC138_B = 1;
+  95   2              HC138_C = 1;
+  96   2              break;
+  97   2          case 4://达林顿管阵列 取反门
+  98   2              HC138_A = 1;
+  99   2              HC138_B = 0;
+ 100   2              HC138_C = 1;
+ 101   2              break;
+ 102   2          default:break;
+ 103   2        }
+ 104   1      }
+ 105          void DelaySMG(unsigned int times)   //@12.000MHz
+ 106          {
+ 107   1        unsigned char i,j;
+ 108   1        unsigned int n;
+ 109   1        for(n = 0;n < times;n++)
+ 110   1        {
+ 111   2          i = 12;
+ 112   2          j = 50;
+ 113   2          do
+ 114   2          {
+ 115   3            while (--j);
+ 116   3          }
+C51 COMPILER V9.54   MAIN                                                                  02/22/2022 17:13:45 PAGE 3   
+
+ 117   2          while (--i);
+ 118   2        }
+ 119   1      
+ 120   1      }
+ 121          void initTimer()
+ 122          {
+ 123   1        TMOD = 0X04;//定时器0工作于计数模式且为16位自动重装载模式 定时器1工作于定时模式且为16位自动重装载模式
+ 124   1        TL0 = 0XFF;//差一个脉冲就会中断
+ 125   1        TH0 = 0XFF;
+ 126   1        TL1 = (65536-50000)%256;
+ 127   1        TH1 = (65536-50000)/256;
+ 128   1        EA = 1;
+ 129   1        ET0 = 1;
+ 130   1        ET1 = 1;
+ 131   1        TR0 = 1;
+ 132   1        TR1 = 1;
+ 133   1      }
+ 134          void Timer0 () interrupt 1
+ 135          {
+ 136   1        count_f++;
+ 137   1      }
+ 138          void Timer1() interrupt 3
+ 139          {
+ 140   1        count_t++;
+ 141   1        if(count_t==20)//每隔1s就计算数了多少个脉冲，即为频率
+ 142   1        {
+ 143   2          dat_f = count_f;
+ 144   2          count_t = 0;
+ 145   2          count_f = 0;
+ 146   2        }
+ 147   1        if(press_flag==1)
+ 148   1        {
+ 149   2          press_count++;
+ 150   2        }
+ 151   1      }
+ 152          void display_adc()
+ 153          {
+ 154   1        Display_SEG_Bit(1,19);//U
+ 155   1        Display_SEG_Bit(2,16);//-
+ 156   1        if(channel_flag==0)
+ 157   1        {
+ 158   2          Display_SEG_Bit(3,1);//-
+ 159   2          HC138_Select(3);//位选
+ 160   2          P0 = 0x00;
+ 161   2          P0 = 0x01<<(6-1);
+ 162   2          HC138_Select(2);//段选
+ 163   2          P0 = 0xff;
+ 164   2          P0 = SMG_duanma[dianya_ain_light/100%10]&(~0x80);
+ 165   2          DelaySMG(1);
+ 166   2          P0 = 0xff;
+ 167   2          
+ 168   2          Display_SEG_Bit(7,dianya_ain_light/10%10);
+ 169   2          Display_SEG_Bit(8,dianya_ain_light%10);
+ 170   2        }
+ 171   1        else
+ 172   1        {
+ 173   2          Display_SEG_Bit(3,3);
+ 174   2          HC138_Select(3);//位选
+ 175   2          P0 = 0x00;
+ 176   2          P0 = 0x01<<(6-1);
+ 177   2          HC138_Select(2);//段选
+ 178   2          P0 = 0xff;
+C51 COMPILER V9.54   MAIN                                                                  02/22/2022 17:13:45 PAGE 4   
+
+ 179   2          P0 = SMG_duanma[dianya_ain_dianya/100%10]&(~0x80);
+ 180   2          DelaySMG(1);
+ 181   2          P0 = 0xff;
+ 182   2          
+ 183   2          Display_SEG_Bit(7,dianya_ain_dianya/10%10);
+ 184   2          Display_SEG_Bit(8,dianya_ain_dianya%10);
+ 185   2        } 
+ 186   1      }
+ 187          void display_fre()
+ 188          {
+ 189   1          Display_SEG_Bit(1,15);//F
+ 190   1          if(dat_f>9999)//20000
+ 191   1          {
+ 192   2            Display_SEG_Bit(4,dat_f/10000%10);
+ 193   2          }
+ 194   1          if(dat_f>999)
+ 195   1          {
+ 196   2            Display_SEG_Bit(5,dat_f/1000%10);
+ 197   2          }
+ 198   1          if(dat_f>99)
+ 199   1          {
+ 200   2            Display_SEG_Bit(6,dat_f/100%10);
+ 201   2          }
+ 202   1          if(dat_f>9)
+ 203   1          {
+ 204   2            Display_SEG_Bit(7,dat_f/10%10);
+ 205   2          }
+ 206   1          if(dat_f>=0)
+ 207   1          {
+ 208   2            Display_SEG_Bit(8,dat_f%10);
+ 209   2          }
+ 210   1      
+ 211   1      }
+ 212          void display_Time()
+ 213          {
+ 214   1        unsigned int Tf = (unsigned int)((1.0/dat_f)*1000000);
+ 215   1        Display_SEG_Bit(1,20);//n
+ 216   1        
+ 217   1        if(Tf>9999)//20000
+ 218   1          {
+ 219   2            Display_SEG_Bit(4,Tf/10000%10);
+ 220   2          }
+ 221   1          if(Tf>999)
+ 222   1          {
+ 223   2            Display_SEG_Bit(5,Tf/1000%10);
+ 224   2          }
+ 225   1          if(Tf>99)
+ 226   1          {
+ 227   2            Display_SEG_Bit(6,Tf/100%10);
+ 228   2          }
+ 229   1          if(Tf>9)
+ 230   1          {
+ 231   2            Display_SEG_Bit(7,Tf/10%10);
+ 232   2          }
+ 233   1          if(Tf>=0)
+ 234   1          {
+ 235   2            Display_SEG_Bit(8,Tf%10);
+ 236   2          }
+ 237   1      }
+ 238          unsigned char Read_AIN3()
+ 239          {
+ 240   1        unsigned char temp = 0;
+C51 COMPILER V9.54   MAIN                                                                  02/22/2022 17:13:45 PAGE 5   
+
+ 241   1        unsigned char i;
+ 242   1        for(i=0;i<2;i++)
+ 243   1        {
+ 244   2          IIC_Start();//IIC总线起始信号
+ 245   2          IIC_SendByte(0x90);//发送PCF8591的写操作地址
+ 246   2          IIC_WaitAck();//等待从机应答
+ 247   2          IIC_SendByte(0x03);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道3)。
+ 248   2          //IIC_SendByte(0x01);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道1)。
+ 249   2          IIC_WaitAck();//等待从机应答
+ 250   2          IIC_Stop();//IIC总线起始信号
+ 251   2          
+ 252   2          IIC_Start();
+ 253   2          IIC_SendByte(0x91);//发送PCF8591的读操作地址
+ 254   2          IIC_WaitAck();
+ 255   2          temp = IIC_RecByte();//读取PCF8591通道的数据 
+ 256   2          IIC_SendAck(1);//产生非应答信号
+ 257   2          IIC_Stop();
+ 258   2        }
+ 259   1        return temp;
+ 260   1      }
+ 261          
+ 262          unsigned char Read_AIN1()
+ 263          {
+ 264   1        unsigned char temp = 0;
+ 265   1        unsigned char i;
+ 266   1        for(i=0;i<2;i++)
+ 267   1        {
+ 268   2          IIC_Start();//IIC总线起始信号
+ 269   2          IIC_SendByte(0x90);//发送PCF8591的写操作地址
+ 270   2          IIC_WaitAck();//等待从机应答
+ 271   2          //IIC_SendByte(0x03);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道3)。
+ 272   2          IIC_SendByte(0x01);//发送控制字节，选择模拟量输入模式(4路单端输入)和通道(通道1)。
+ 273   2          IIC_WaitAck();//等待从机应答
+ 274   2          IIC_Stop();//IIC总线起始信号
+ 275   2          
+ 276   2          IIC_Start();
+ 277   2          IIC_SendByte(0x91);//发送PCF8591的读操作地址
+ 278   2          IIC_WaitAck();
+ 279   2          temp = IIC_RecByte();//读取PCF8591通道的数据 
+ 280   2          IIC_SendAck(1);//产生非应答信号
+ 281   2          IIC_Stop();
+ 282   2        }
+ 283   1        return temp;
+ 284   1      }
+ 285          void Delay_K(unsigned char times)
+ 286          {
+ 287   1        while(times--)
+ 288   1        {
+ 289   2          display();
+ 290   2        }
+ 291   1      }
+ 292          void Key_Scan()
+ 293          {
+ 294   1        if(S4==0)
+ 295   1        {
+ 296   2          Delay_K(20);
+ 297   2          if(S4==0)
+ 298   2          {
+ 299   3            while(S4==0)
+ 300   3            {
+ 301   4              display();
+ 302   4            }
+C51 COMPILER V9.54   MAIN                                                                  02/22/2022 17:13:45 PAGE 6   
+
+ 303   3            display_flag++;
+ 304   3            if(display_flag==3)
+ 305   3            {
+ 306   4              display_flag = 0;
+ 307   4            }
+ 308   3            if(display_flag==2)
+ 309   3            {
+ 310   4              channel_flag = 0;
+ 311   4            }
+ 312   3          }
+ 313   2        }
+ 314   1          if(S5==0)
+ 315   1        {
+ 316   2          Delay_K(20);
+ 317   2          if(S5==0)
+ 318   2          {
+ 319   3            while(S5==0)
+ 320   3            {
+ 321   4              display();
+ 322   4            }
+ 323   3            if(display_flag==2)
+ 324   3            {
+ 325   4              channel_flag = !channel_flag;
+ 326   4            }
+ 327   3          }
+ 328   2        }
+ 329   1        
+ 330   1          if(S7==0)
+ 331   1        {
+ 332   2          Delay_K(20);
+ 333   2          if(S7==0)
+ 334   2          {
+ 335   3            press_flag = 1;
+ 336   3            while(S7==0)
+ 337   3            {
+ 338   4              display();
+ 339   4            }
+ 340   3            press_flag = 0;
+ 341   3            if(press_count>20)
+ 342   3            {
+ 343   4              led_function = !led_function;
+ 344   4            }
+ 345   3            else
+ 346   3            {
+ 347   4              fre_can = dat_f;
+ 348   4            }
+ 349   3            press_count = 0;
+ 350   3          }
+ 351   2        }
+ 352   1        
+ 353   1        
+ 354   1        if(S6==0)
+ 355   1        {
+ 356   2          Delay_K(20);
+ 357   2          if(S6==0)
+ 358   2          {
+ 359   3            while(S6==0)
+ 360   3            {
+ 361   4              display();
+ 362   4            }
+ 363   3            dianya_can = dianya_ain_dianya;
+ 364   3          }
+C51 COMPILER V9.54   MAIN                                                                  02/22/2022 17:13:45 PAGE 7   
+
+ 365   2        }
+ 366   1      }
+ 367          void display()
+ 368          {
+ 369   1        if(display_flag==0)
+ 370   1        {
+ 371   2          display_fre();
+ 372   2        }
+ 373   1        else if(display_flag==1)
+ 374   1        {
+ 375   2          display_Time();
+ 376   2        }
+ 377   1        else if(display_flag==2)
+ 378   1        {
+ 379   2          display_adc();
+ 380   2        }
+ 381   1      }
+ 382          void LED_Control()
+ 383          {
+ 384   1        if(led_function==0)
+ 385   1        {
+ 386   2            if(dianya_ain_dianya > dianya_can)
+ 387   2            {
+ 388   3              HC138_Select(1);
+ 389   3              LED1 = 0;
+ 390   3            }
+ 391   2            else
+ 392   2            {
+ 393   3              HC138_Select(1);
+ 394   3              LED1 = 1;
+ 395   3            }
+ 396   2            if(dat_f > fre_can)
+ 397   2            {
+ 398   3              HC138_Select(1);
+ 399   3              LED2 = 0;
+ 400   3            }
+ 401   2            else
+ 402   2            {
+ 403   3              HC138_Select(1);
+ 404   3              LED2 = 1;
+ 405   3            }
+ 406   2            if(display_flag==0)
+ 407   2            {
+ 408   3              HC138_Select(1);
+ 409   3              LED3 = 0;
+ 410   3              LED4 = 1;
+ 411   3              LED5 = 1;
+ 412   3            }
+ 413   2            else if(display_flag==1)
+ 414   2            {
+ 415   3              HC138_Select(1);
+ 416   3              LED3 = 1;
+ 417   3              LED4 = 0;
+ 418   3              LED5 = 1;
+ 419   3            }
+ 420   2            else if(display_flag==2)
+ 421   2            {
+ 422   3              HC138_Select(1);
+ 423   3              LED3 = 1;
+ 424   3              LED4 = 1;
+ 425   3              LED5 = 0;
+ 426   3            }
+C51 COMPILER V9.54   MAIN                                                                  02/22/2022 17:13:45 PAGE 8   
+
+ 427   2            else
+ 428   2            {
+ 429   3              
+ 430   3            }
+ 431   2        }
+ 432   1        else
+ 433   1        {
+ 434   2          HC138_Select(1);
+ 435   2          P0 = 0xFF;//所有灯关掉
+ 436   2        }
+ 437   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1253    ----
+   CONSTANT SIZE    =     21    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     18       9
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

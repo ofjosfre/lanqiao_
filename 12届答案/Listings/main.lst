@@ -1,0 +1,389 @@
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 15:58:09 PAGE 1   
+
+
+C51 COMPILER V9.54, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: E:\Keil5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main.l
+                    -st) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          /*******************************************************************************  
+   2          * 文件名称：矩阵键盘实验
+   3          * 实验配置：J13跳线配置为IO方式，J5配置为KBD、J2配置为1-3和2-4
+   4          * 实验现象：当按下并松开按键时第1、2个数码管显示相应的键值，键值范围为0-15
+   5          * 硬件环境：IAP15F2K61S2单片机，单片机内部振荡器频率：12M
+   6          * 注意事项：要用到_nop_()必须要包含intrins.h头文件
+   7          *******************************************************************************/
+   8          #include <stc15.h>
+   9          #include "iic.h"
+  10          #include "onewire.h"
+  11          unsigned char code SMG_duanma[19]=
+  12          {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,
+  13               0x80,0x90,0x88,0x80,0xc6,0xc0,0x86,0x8e,0xbf,0x7f,0x8C
+  14          };
+  15          sbit HC138_A = P2^5;
+  16          sbit HC138_B = P2^6;
+  17          sbit HC138_C = P2^7;
+  18          sbit LED1 = P0^0;
+  19          sbit LED2 = P0^1;
+  20          sbit LED3 = P0^2;
+  21          sbit LED4 = P0^3;
+  22          sbit C1 = P4^4;
+  23          sbit C2 = P4^2;
+  24          sbit C3 = P3^5;
+  25          sbit C4 = P3^4;
+  26          unsigned int temperature;
+  27          unsigned int temp_can = 25;
+  28          float dianya;
+  29          unsigned char display_flag;
+  30          unsigned char mode_flag;
+  31          unsigned char keyVal=0;
+  32          void Display();
+  33          void display_temp_can();
+  34          void HC138_Select(unsigned char i);
+  35          void display_temperature();
+  36          void Display_SEG_Bit(unsigned char pos,unsigned char value);
+  37          void DelayK(unsigned char t);
+  38          void delay_seg(unsigned int times);
+  39          void display_dac();
+  40          void Key_Scan();
+  41          void Function_Key();
+  42          void Panduan_Mode();
+  43          void Pout_DAC(unsigned char temp);
+  44          void main()
+  45          {
+  46   1        
+  47   1        HC138_Select(4);
+  48   1        P0=0X00;//初始化程序--关蜂鸣器、关继电器
+  49   1        HC138_Select(1);
+  50   1        P0=0XFF;//初始化程序--关灯
+  51   1        while(1)
+  52   1        {
+  53   2          temperature = (unsigned int)(read_temperature()*100); //采集温度、并将其放大100倍
+  54   2          //display_temperature();
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 15:58:09 PAGE 2   
+
+  55   2          Function_Key();//矩阵按键功能判断函数
+  56   2          Display();//界面显示函数
+  57   2          Panduan_Mode();//根据不同的模式 输出电压不同
+  58   2          
+  59   2        }
+  60   1      }
+  61          //切换显示界面
+  62          void Display()
+  63          {
+  64   1          if(display_flag==0)
+  65   1          {
+  66   2            display_temperature();
+  67   2          }
+  68   1          else if(display_flag==1)
+  69   1          {
+  70   2            display_temp_can();
+  71   2          }
+  72   1          else if(display_flag==2)
+  73   1          {
+  74   2             display_dac();
+  75   2          }
+  76   1          else
+  77   1          {
+  78   2            
+  79   2          }
+  80   1          
+  81   1      }
+  82          void Function_Key()
+  83          {
+  84   1          Key_Scan();//行列扫描
+  85   1          if(keyVal == 13)
+  86   1          {
+  87   2            keyVal = 0;
+  88   2            display_flag++;//S4按键切换显示的界面
+  89   2            if(display_flag==3)
+  90   2            {
+  91   3              display_flag = 0;
+  92   3            }
+  93   2          }
+  94   1          if(keyVal == 9)//切换模式
+  95   1          {
+  96   2            keyVal = 0;
+  97   2            mode_flag = !mode_flag;
+  98   2          }
+  99   1          if(display_flag==1)//保证加、减按键仅在参数设置界面有效
+ 100   1          {
+ 101   2            if(keyVal == 10)//+++
+ 102   2            {
+ 103   3              keyVal = 0;
+ 104   3              if(temp_can<=98)//合理设置边界 数据最大增加到99
+ 105   3                temp_can++;
+ 106   3            }
+ 107   2            if(keyVal == 14)//----
+ 108   2            {
+ 109   3              keyVal = 0;
+ 110   3              if(temp_can>=1)//合理设置边界 数据最小减小到0
+ 111   3                temp_can--;
+ 112   3            }
+ 113   2          }
+ 114   1      }
+ 115          void Panduan_Mode()
+ 116          {
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 15:58:09 PAGE 3   
+
+ 117   1        if(mode_flag==0)//模式1
+ 118   1        {
+ 119   2          HC138_Select(1);
+ 120   2          LED1 = 0;
+ 121   2          if(temperature!=8500)//此值DS18B20刚转换时未转换完成可能出现的值
+ 122   2          {
+ 123   3            if(temperature<(temp_can*100))
+ 124   3            {
+ 125   4              dianya = 0;
+ 126   4            }
+ 127   3            else
+ 128   3            {
+ 129   4              dianya = 5;
+ 130   4            }
+ 131   3          }
+ 132   2        }
+ 133   1        else
+ 134   1        {
+ 135   2          HC138_Select(1);
+ 136   2          LED1 = 1;
+ 137   2          if(temperature!=8500)
+ 138   2          {
+ 139   3            if(temperature<=2000)
+ 140   3            {
+ 141   4              dianya = 1;
+ 142   4            }
+ 143   3            else if(temperature>=4000)
+ 144   3            {
+ 145   4              dianya = 4;
+ 146   4            }
+ 147   3            else
+ 148   3            {
+ 149   4              dianya = temperature/100.0 * 0.15-2;
+ 150   4            }
+ 151   3          }
+ 152   2        }
+ 153   1        //temp_dianya = (int)(dianya*100);
+ 154   1        Pout_DAC(dianya*51);
+ 155   1      }
+ 156          void Display_SEG_Bit(unsigned char pos,unsigned char value)
+ 157          {
+ 158   1        HC138_Select(3);//位选
+ 159   1        P0 = 0x00;//关闭所有数码管
+ 160   1        P0 = (0x01<<(pos-1));
+ 161   1        HC138_Select(2);//段选
+ 162   1        P0 = 0xFF;//关闭所有段选
+ 163   1        P0 = SMG_duanma[value];
+ 164   1        delay_seg(1);
+ 165   1        P0 = 0xFF;//消影
+ 166   1      }
+ 167          void HC138_Select(unsigned char i)
+ 168          {
+ 169   1        switch(i)
+ 170   1        {
+ 171   2          case 1://LED
+ 172   2              HC138_A = 0;
+ 173   2              HC138_B = 0;
+ 174   2              HC138_C = 1;
+ 175   2              break;
+ 176   2          case 2://SEG
+ 177   2              HC138_A = 1;
+ 178   2              HC138_B = 1;
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 15:58:09 PAGE 4   
+
+ 179   2              HC138_C = 1;
+ 180   2              break;
+ 181   2          case 3://Bit
+ 182   2              HC138_A = 0;
+ 183   2              HC138_B = 1;
+ 184   2              HC138_C = 1;
+ 185   2              break;
+ 186   2          case 4://达林顿管阵列 取反门
+ 187   2              HC138_A = 1;
+ 188   2              HC138_B = 0;
+ 189   2              HC138_C = 1;
+ 190   2              break;
+ 191   2          default:break;
+ 192   2        }
+ 193   1      }
+ 194          
+ 195          void delay_seg(unsigned int times)    //@12.000MHz
+ 196          {
+ 197   1        unsigned char i,j;
+ 198   1        unsigned int n;
+ 199   1        for(n = 0;n < times;n++)
+ 200   1        {
+ 201   2          i = 12;
+ 202   2          j = 50;
+ 203   2          do
+ 204   2          {
+ 205   3            while (--j);
+ 206   3          }
+ 207   2          while (--i);
+ 208   2        }
+ 209   1      }
+ 210          void Key_Scan()
+ 211          {
+ 212   1        unsigned char i;
+ 213   1        C1 = C2 = C3 = C4 = 1;//每次判断前把全部列线拉高
+ 214   1        for(i=0;i<4;i++)
+ 215   1        {
+ 216   2          P3 |= 0x0f;
+ 217   2          P3 &= ~(1<<i);//依次把每行拉低：每次只有一行拉低，其余为高
+ 218   2          if(C1==0)
+ 219   2          {
+ 220   3            DelayK(10);
+ 221   3            if(C1==0)
+ 222   3            {
+ 223   4              while(C1==0)
+ 224   4              {
+ 225   5                Display();
+ 226   5                Panduan_Mode();
+ 227   5              }
+ 228   4              keyVal = i*4+1;
+ 229   4              break;
+ 230   4            }
+ 231   3          }
+ 232   2          else if(C2==0)
+ 233   2          {
+ 234   3            DelayK(10);
+ 235   3            if(C2==0)
+ 236   3            {
+ 237   4              while(C2==0)
+ 238   4              {
+ 239   5                Display();
+ 240   5                Panduan_Mode();
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 15:58:09 PAGE 5   
+
+ 241   5              }
+ 242   4              keyVal = i*4+2;
+ 243   4              break;
+ 244   4            }
+ 245   3          }
+ 246   2          else if(C3==0)
+ 247   2          {
+ 248   3            DelayK(10);
+ 249   3            if(C3==0)
+ 250   3            {
+ 251   4              while(C3==0)
+ 252   4              {
+ 253   5                Display();
+ 254   5                Panduan_Mode();
+ 255   5              }
+ 256   4              keyVal = i*4+3;
+ 257   4              break;
+ 258   4            }
+ 259   3          }
+ 260   2          else if(C4==0)
+ 261   2          {
+ 262   3            DelayK(10);
+ 263   3            if(C4==0)
+ 264   3            {
+ 265   4              while(C4==0)
+ 266   4              {
+ 267   5                Display();
+ 268   5                Panduan_Mode();
+ 269   5              }
+ 270   4              keyVal = i*4+4;
+ 271   4              break;
+ 272   4            }
+ 273   3          }
+ 274   2        }
+ 275   1      
+ 276   1      }
+ 277          void DelayK(unsigned char t)
+ 278          {
+ 279   1        while(t--)
+ 280   1        {
+ 281   2          Display();
+ 282   2          Panduan_Mode();
+ 283   2        }
+ 284   1      }
+ 285          void display_temperature()
+ 286          {
+ 287   1        
+ 288   1        HC138_Select(1);
+ 289   1        LED2 = 0;
+ 290   1        LED3 = 1;
+ 291   1        LED4 = 1;
+ 292   1        Display_SEG_Bit(1,12);
+ 293   1        if(temperature!=8500)//23.45 2345
+ 294   1        {
+ 295   2            Display_SEG_Bit(5,temperature/1000%10);
+ 296   2            /*显示小数点*/
+ 297   2            HC138_Select(3);//位选
+ 298   2            P0 = 0x00;
+ 299   2            P0 = 0x01<<(6-1);
+ 300   2            HC138_Select(2);//段选
+ 301   2            P0 = 0xff;
+ 302   2            P0 = SMG_duanma[temperature/100%10]&(~0x80);
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 15:58:09 PAGE 6   
+
+ 303   2            delay_seg(1);
+ 304   2            P0 = 0xFF;
+ 305   2            Display_SEG_Bit(7,temperature/10%10);
+ 306   2            Display_SEG_Bit(8,temperature%10);
+ 307   2      
+ 308   2        }
+ 309   1      }
+ 310          void display_temp_can()
+ 311          {
+ 312   1        HC138_Select(1);
+ 313   1        LED2 = 1;
+ 314   1        LED3 = 0;
+ 315   1        LED4 = 1;
+ 316   1        Display_SEG_Bit(1,18);
+ 317   1        Display_SEG_Bit(7,temp_can/10%10);
+ 318   1        Display_SEG_Bit(8,temp_can%10);
+ 319   1      }
+ 320          void display_dac()
+ 321          {
+ 322   1        unsigned int temp_dianya = 0;
+ 323   1        HC138_Select(1);
+ 324   1        LED2 = 1;
+ 325   1        LED3 = 1;
+ 326   1        LED4 = 0;
+ 327   1        temp_dianya = (unsigned int)(dianya*100);//3.67 367
+ 328   1        Display_SEG_Bit(1,10);
+ 329   1        
+ 330   1        /*显示小数点*/
+ 331   1        HC138_Select(3);//位选
+ 332   1        P0 = 0x00;
+ 333   1        P0 = 0x01<<(6-1);
+ 334   1        HC138_Select(2);//段选
+ 335   1        P0 = 0xff;
+ 336   1        P0 = SMG_duanma[temp_dianya/100%10]&(~0x80);
+ 337   1        delay_seg(1);
+ 338   1        P0 = 0xff;
+ 339   1        Display_SEG_Bit(7,temp_dianya/10%10);
+ 340   1        Display_SEG_Bit(8,temp_dianya%10);
+ 341   1        
+ 342   1      }
+ 343          void Pout_DAC(unsigned char temp)
+ 344          {
+ 345   1        IIC_Start();//IIC总线起始信号
+ 346   1        IIC_SendByte(0x90);//发送PCF8591的写设备地址
+ 347   1        IIC_WaitAck();//等待从机应答
+ 348   1        IIC_SendByte(0x40);//发送控制字节，选择DA模式
+ 349   1        IIC_WaitAck();//等待从机应答
+ 350   1        IIC_SendByte(temp);//发送
+ 351   1        IIC_WaitAck();//等待从机应答
+ 352   1        IIC_Stop();//IIC总线起始信号
+ 353   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    991    ----
+   CONSTANT SIZE    =     19    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     11       7
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+C51 COMPILER V9.54   MAIN                                                                  02/24/2022 15:58:09 PAGE 7   
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
